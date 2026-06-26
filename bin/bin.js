@@ -64,9 +64,7 @@ function readTree(where) {
         "tree",
         JSON.stringify(entries)
     );
-    console.log('found a new tree!')
   } catch (err) {
-    console.log('tree already exists')
   }
 
     return treeHash;
@@ -151,10 +149,7 @@ function compareTree(treeHash, path="/", files ={}) {
 function comparison(tree1, tree2){
 
 
-const allFiles = new Set([
-    ...Object.keys(tree1),
-    ...Object.keys(tree2)
-]);
+const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
 
 for (const file of allFiles) {
 
@@ -168,10 +163,6 @@ for (const file of allFiles) {
 
     else if (tree1[file] !== tree2[file]) {
         console.log("MODIFIED:", file);
-    }
-
-    else {
-        console.log("UNCHANGED:", file);
     }
 }
 }
@@ -303,9 +294,7 @@ const cli = yargs(hideBin(process.argv))
         const content = fs.readFileSync(file, 'utf8');
 
         if (fs.existsSync('./.chimp/files/' + hash(content))) {
-        console.log('The path exists!');
         } else {
-        console.log('The path does not exist.');
         
         fs.writeFileSync('./.chimp/files/' + hash(content), content, 'utf8');
         }
