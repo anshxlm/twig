@@ -341,9 +341,22 @@ const cli = yargs(hideBin(process.argv))
     SELECT * FROM objects
     WHERE hash LIKE ?
     `);
-      
-      comparison(compareTree(JSON.parse(getObject.get(`${argv.c1}%`).data).tree), compareTree(JSON.parse(getObject.get(`${argv.c2}%`).data).tree))
-   
+
+      let currentHash = JSON.parse(getObject.get(`${argv.c2}%`).data).parent
+      let first = false;
+
+      while (currentHash){
+        if (currentHash == getObject.get(`${argv.c1}%`).hash){
+          first = true
+          comparison(compareTree(JSON.parse(getObject.get(`${argv.c1}%`).data).tree), compareTree(JSON.parse(getObject.get(`${argv.c2}%`).data).tree))
+        }
+        const commit = JSON.parse(getObject.get(currentHash).data);
+        currentHash = commit.parent;
+      }
+      if (!first){
+        comparison(compareTree(JSON.parse(getObject.get(`${argv.c2}%`).data).tree), compareTree(JSON.parse(getObject.get(`${argv.c1}%`).data).tree))
+      }
+        
 
     }
   ).command(
