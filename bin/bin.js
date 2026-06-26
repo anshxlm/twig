@@ -10,10 +10,9 @@ import path from "path";
 import Database from 'better-sqlite3';;
 
 if (!(fs.existsSync('./.chimp'))){
-  fs.mkdir('./.chimp', (err) => {
-          
-        });
+  fs.mkdir('./.chimp', (err) => {});
 }
+
 const db = new Database('./.chimp/tree.db');
 db.pragma('journal_mode = WAL');
 
@@ -23,7 +22,6 @@ function readTree(where) {
     INSERT INTO objects (hash, type, data)
     VALUES (?, ?, ?)
 `);
-
 
     const entries = [];
 
@@ -72,8 +70,6 @@ function readTree(where) {
 
 
 function generateTree( where ){
-
-  
 
 const dirs = []
 
@@ -128,8 +124,6 @@ function compareTree(treeHash, path="/", files ={}) {
     WHERE hash LIKE ?
     `);
 
-
-
     const treeIn = JSON.parse(getObject.get(treeHash).data)
 
 
@@ -168,7 +162,6 @@ for (const file of allFiles) {
 }
 
 
-
 const cli = yargs(hideBin(process.argv))
   .scriptName('chimp')
   .usage('Usage: $0 <command> [options]')
@@ -185,8 +178,6 @@ const cli = yargs(hideBin(process.argv))
     'Initialize',
     (yargs) => {},
     async (argv) => {  
-
-
 
     const spinner = ora('Initializing\n').start();
         fs.mkdir('./.chimp', (err) => {
@@ -217,15 +208,11 @@ const cli = yargs(hideBin(process.argv))
 );
 `);
 
-
         const initTree = generateTree('./testFolder')
         
         fs.mkdir('./.chimp/files', (err) => {
            
         });
-
-        
-
 
         for (const file of initTree){
 
@@ -233,11 +220,6 @@ const cli = yargs(hideBin(process.argv))
         fs.writeFileSync('./.chimp/files/' + hash(content), content, 'utf8');
   
         //console.log(`file ${file} saved to ${hash}`);
-
-
-        
-
-
 
         }
         readTree('./testFolder')
@@ -257,17 +239,9 @@ const cli = yargs(hideBin(process.argv))
         };
         fs.writeFileSync('./.chimp/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        
-
         spinner.succeed(chalk.green(answer) + " initialized")
 
-
-
-
         }
-
-
-
      }
   )
   .command(
@@ -319,9 +293,6 @@ const cli = yargs(hideBin(process.argv))
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         fs.writeFileSync('./.chimp/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
 
-        
-
-      
     }
   ).command(
     'compare <c1> <c2>', 
@@ -356,15 +327,13 @@ const cli = yargs(hideBin(process.argv))
       if (!first){
         comparison(compareTree(JSON.parse(getObject.get(`${argv.c2}%`).data).tree), compareTree(JSON.parse(getObject.get(`${argv.c1}%`).data).tree))
       }
-        
-
+      
     }
   ).command(
     'history', 
     'commit history', 
     () => {}, 
     (argv) => {
-
 
       const getObject = db.prepare(`
     SELECT * FROM objects
@@ -393,8 +362,6 @@ const cli = yargs(hideBin(process.argv))
     console.log(msg)
     }
   }
-
-
 
     }
   )
