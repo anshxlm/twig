@@ -9,11 +9,11 @@ import crypto, { randomBytes } from 'node:crypto'
 import path from "path";
 import Database from 'better-sqlite3';;
 
-if (!(fs.existsSync('./.chimp'))){
-  fs.mkdir('./.chimp', (err) => {});
+if (!(fs.existsSync('./.twig'))){
+  fs.mkdir('./.twig', (err) => {});
 }
 
-const db = new Database('./.chimp/tree.db');
+const db = new Database('./.twig/tree.db');
 db.pragma('journal_mode = WAL');
 
 function readTree(where) {
@@ -163,7 +163,7 @@ for (const file of allFiles) {
 
 
 const cli = yargs(hideBin(process.argv))
-  .scriptName('chimp')
+  .scriptName('twig')
   .usage('Usage: $0 <command> [options]')
   .command(
     '$0', 
@@ -180,17 +180,17 @@ const cli = yargs(hideBin(process.argv))
     async (argv) => {  
 
     const spinner = ora('Initializing\n').start();
-        fs.mkdir('./.chimp', (err) => {
+        fs.mkdir('./.twig', (err) => {
           if (!(err == null)){
           if (!(err.code == 'EEXIST')){
             console.log(err)
           }
         }
         });
-        const filePath = './.chimp/init.chimp';
+        const filePath = './.twig/init.twig';
         if (existsSync(filePath)){
           console.log()
-          spinner.fail('chimp is already initialized here!')
+          spinner.fail('twig is already initialized here!')
         } 
         else {
 
@@ -210,14 +210,14 @@ const cli = yargs(hideBin(process.argv))
 
         const initTree = generateTree('./testFolder')
         
-        fs.mkdir('./.chimp/files', (err) => {
+        fs.mkdir('./.twig/files', (err) => {
            
         });
 
         for (const file of initTree){
 
         const content = fs.readFileSync(file, 'utf8');
-        fs.writeFileSync('./.chimp/files/' + hash(content), content, 'utf8');
+        fs.writeFileSync('./.twig/files/' + hash(content), content, 'utf8');
   
         //console.log(`file ${file} saved to ${hash}`);
 
@@ -237,7 +237,7 @@ const cli = yargs(hideBin(process.argv))
         parent:null,
         when: Date.now()
         };
-        fs.writeFileSync('./.chimp/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+        fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         spinner.succeed(chalk.green(answer) + " initialized")
 
@@ -267,10 +267,10 @@ const cli = yargs(hideBin(process.argv))
         
         const content = fs.readFileSync(file, 'utf8');
 
-        if (fs.existsSync('./.chimp/files/' + hash(content))) {
+        if (fs.existsSync('./.twig/files/' + hash(content))) {
         } else {
         
-        fs.writeFileSync('./.chimp/files/' + hash(content), content, 'utf8');
+        fs.writeFileSync('./.twig/files/' + hash(content), content, 'utf8');
         }
         }
   
@@ -281,7 +281,7 @@ const cli = yargs(hideBin(process.argv))
           VALUES (?, ?, ?)
           `);
         
-        const parent = fs.readFileSync('./.chimp/HEAD', 'utf8');
+        const parent = fs.readFileSync('./.twig/HEAD', 'utf8');
 
         const commitinfo = {
         tree: commitRoot,
@@ -291,7 +291,7 @@ const cli = yargs(hideBin(process.argv))
         };
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        fs.writeFileSync('./.chimp/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+        fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
 
     }
   ).command(
@@ -340,7 +340,7 @@ const cli = yargs(hideBin(process.argv))
     WHERE hash = ?
     `);
 
-    let hash = fs.readFileSync("./.chimp/HEAD", "utf8");
+    let hash = fs.readFileSync("./.twig/HEAD", "utf8");
 
    const historyArr = []; 
 
