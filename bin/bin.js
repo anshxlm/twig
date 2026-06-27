@@ -9,14 +9,19 @@ import crypto, { randomBytes } from 'node:crypto'
 import path from "path";
 import Database from 'better-sqlite3';;
 
-if (!(fs.existsSync('./.twig'))){
-  fs.mkdir('./.twig', (err) => {});
+let db;
+
+export function getDb() {
+    if (!db) {
+        db = new Database("./.twig/tree.db");
+        db.pragma("journal_mode = WAL");
+    }
+
+    return db;
 }
 
-const db = new Database('./.twig/tree.db');
-db.pragma('journal_mode = WAL');
-
 function readTree(where) {
+  const db = getDb();
 
   const insertObject = db.prepare(`
     INSERT INTO objects (hash, type, data)
@@ -98,6 +103,7 @@ function hash(data) {
 }
 
 function consoleTree(treeHash, indent = "") {
+  const db = getDb();
   const getObject = db.prepare(`
     SELECT * FROM objects
     WHERE hash LIKE ?
@@ -118,7 +124,7 @@ function consoleTree(treeHash, indent = "") {
 }
 
 function compareTree(treeHash, path="/", files ={}) {
-
+const db = getDb();
   const getObject = db.prepare(`
     SELECT * FROM objects
     WHERE hash LIKE ?
@@ -187,7 +193,7 @@ const cli = yargs(hideBin(process.argv))
           }
         }
         });
-        const filePath = './.twig/init.twig';
+        const filePath = './.twig/INIT';
         if (existsSync(filePath)){
           console.log()
           spinner.fail('twig is already initialized here!')
@@ -200,6 +206,7 @@ const cli = yargs(hideBin(process.argv))
         const answer = await input({ message: 'what is your project name' });
         spinner.start()
         fs.writeFileSync(filePath, answer, 'utf-8');
+        const db = getDb();
         db.exec(`
   CREATE TABLE IF NOT EXISTS objects (
     hash TEXT PRIMARY KEY,
@@ -307,6 +314,7 @@ const cli = yargs(hideBin(process.argv))
       })
     }, 
     (argv) => {
+      const db = getDb();
 
       const getObject = db.prepare(`
     SELECT * FROM objects
@@ -334,6 +342,7 @@ const cli = yargs(hideBin(process.argv))
     'commit history', 
     () => {}, 
     (argv) => {
+      const db = getDb();
 
       const getObject = db.prepare(`
     SELECT * FROM objects
