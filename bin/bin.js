@@ -215,6 +215,15 @@ const cli = yargs(hideBin(process.argv))
 );
 `);
 
+          db.exec(`
+  CREATE TABLE IF NOT EXISTS branches (
+    name TEXT PRIMARY KEY,
+    commit_hash TEXT NOT NULL
+);
+`);
+
+        
+
         const initTree = generateTree('./testFolder')
         
         fs.mkdir('./.twig/files', (err) => {
@@ -238,13 +247,23 @@ const cli = yargs(hideBin(process.argv))
           VALUES (?, ?, ?)
           `);
 
+          const newBranch = db.prepare(`
+          INSERT INTO branches (name, commit_hash)
+          VALUES (?, ?)
+          `);
+
         const commitinfo = {
         tree: commitRoot,
         message: "Initial Commit",
         parent:null,
         when: Date.now()
         };
-        fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+
+        
+        fs.writeFileSync('./.twig/HEAD', "main", 'utf8');
+
+        newBranch.run("main", hash(JSON.stringify(commitinfo)))
+
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         spinner.succeed(chalk.green(answer) + " initialized")
 
