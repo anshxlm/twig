@@ -307,17 +307,29 @@ const cli = yargs(hideBin(process.argv))
           VALUES (?, ?, ?)
           `);
         
-        const parent = fs.readFileSync('./.twig/HEAD', 'utf8');
+          
+        const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+        const getParent = db.prepare(`
+    SELECT commit_hash FROM branches
+    WHERE name = ?
+    `);
+        const setParentBranch = db.prepare(`
+    UPDATE branches
+    SET commit_hash = ?
+    WHERE name = ?;
+    `);
+
 
         const commitinfo = {
         tree: commitRoot,
         message: msg,
-        parent:parent,
+        parent:getParent.get(parentBranch).commit_hash,
         when: Date.now()
         };
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+        setParentBranch.run(hash(JSON.stringify(commitinfo)), parentBranch)
+        // fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
 
     }
   ).command(
