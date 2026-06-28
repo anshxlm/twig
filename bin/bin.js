@@ -7,7 +7,8 @@ import { input } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes } from 'node:crypto'
 import path from "path";
-import Database from 'better-sqlite3';;
+import Database from 'better-sqlite3';import { create } from 'node:domain';
+;
 
 let db;
 
@@ -119,6 +120,27 @@ function consoleTree(treeHash, indent = "") {
 
         if (treeIn[i].type === "tree") {
             consoleTree(treeIn[i].hash,indent + "│   ");
+        }
+    }
+}
+
+function createBranchTree(treeHash, indent = "") {
+  const db = getDb();
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash LIKE ?
+    `);
+
+    const treeIn = JSON.parse(getObject.get(treeHash).data);
+
+    for (let i = 0; i < treeIn.length; i++) {
+
+        const last = i === treeIn.length - 1;
+
+        console.log(indent +(last ? "└──" : "├──") +treeIn[i].name);
+
+        if (treeIn[i].type === "tree") {
+            createBranchTree(treeIn[i].hash,indent + "│   ");
         }
     }
 }
@@ -367,7 +389,7 @@ const cli = yargs(hideBin(process.argv))
       
     }
   ).command(
-    'history', 
+    'log', 
     'commit history', 
     () => {}, 
     (argv) => {
@@ -392,7 +414,7 @@ const cli = yargs(hideBin(process.argv))
 
     const commit = JSON.parse(getObject.get(hash).data);
 
-    historyArr.push(commit.message)
+    historyArr.push({hash:hash, message:commit.message})
 
     hash = commit.parent;
 } 
@@ -400,12 +422,15 @@ const cli = yargs(hideBin(process.argv))
 
   for (const [index, msg] of historyArr.toReversed().entries()){
     if (index == 0){
-      console.log('--> ' + msg)
+      console.log(chalk.bold(msg.message) + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
     }
     else {
-    console.log(msg)
+    console.log(msg.message  + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
     }
   }
+  console.log('\nRoot')
+  consoleTree(JSON.parse(getObject.get(getParent.get(parentBranch).commit_hash).data).tree)
+
 
     }
   ).command(
