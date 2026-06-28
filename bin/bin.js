@@ -222,8 +222,6 @@ const cli = yargs(hideBin(process.argv))
 );
 `);
 
-        
-
         const initTree = generateTree('./testFolder')
         
         fs.mkdir('./.twig/files', (err) => {
