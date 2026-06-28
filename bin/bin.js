@@ -404,6 +404,34 @@ const cli = yargs(hideBin(process.argv))
   }
 
     }
+  ).command(
+    'branch <name>', 
+    'create new branch', 
+    (yargs) => {
+      return yargs.positional('name', {
+        describe: 'name of new branch',
+        type: 'string',
+      })
+    }, 
+    (argv) => {
+      const db = getDb();
+
+      const newBranch = db.prepare(`
+          INSERT INTO branches (name, commit_hash)
+          VALUES (?, ?)
+          `);
+
+      const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+        const getParent = db.prepare(`
+    SELECT commit_hash FROM branches
+    WHERE name = ?
+    `);
+
+    newBranch.run(argv.name, getParent.get(parentBranch).commit_hash)
+
+    console.log("New branch " + chalk.magenta.bold(argv.name) + " created")
+
+      }
   )
   .help()
   .parse()
