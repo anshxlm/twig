@@ -78,7 +78,6 @@ function readTree(where) {
 function generateTree( where ){
 
 const dirs = []
-
 const files = fs.readdirSync(where, {
   recursive: true,
   withFileTypes:true
@@ -165,7 +164,6 @@ const db = getDb();
     }
 
     return files
-
 }
 
 function comparison(tree1, tree2){
@@ -430,7 +428,6 @@ const cli = yargs(hideBin(process.argv))
   }
   console.log('\nRoot')
   consoleTree(JSON.parse(getObject.get(getParent.get(parentBranch).commit_hash).data).tree)
-
 
     }
   ).command(
