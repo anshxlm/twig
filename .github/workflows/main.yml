@@ -24,8 +24,7 @@ jobs:
 
       - name: Initialize repository
         run: |
-          mkdir testrepo
-          cd testrepo
+          mkdir testFolder
           twig init
 
       - name: Test commit
