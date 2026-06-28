@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir testrepo
           cd testrepo
-          echo "My Repository" | twig init
+          twig init
 
       - name: Test commit
         run: |

@@ -213,7 +213,7 @@ const cli = yargs(hideBin(process.argv))
           }
         }
         });
-        const filePath = './.twig/INIT';
+        const filePath = './.twig';
         if (existsSync(filePath)){
           console.log()
           spinner.fail('twig is already initialized here!')
@@ -223,9 +223,7 @@ const cli = yargs(hideBin(process.argv))
 
           spinner.stop()
           console.log()
-        const answer = await input({ message: 'what is your project name' });
         spinner.start()
-        fs.writeFileSync(filePath, answer, 'utf-8');
         const db = getDb();
         db.exec(`
   CREATE TABLE IF NOT EXISTS objects (
@@ -283,7 +281,7 @@ const cli = yargs(hideBin(process.argv))
         newBranch.run("master", hash(JSON.stringify(commitinfo)))
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        spinner.succeed(chalk.green(answer) + " initialized")
+        spinner.succeed(chalk.green('./.twig') + " initialized")
 
         }
      }
