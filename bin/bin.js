@@ -260,9 +260,9 @@ const cli = yargs(hideBin(process.argv))
         };
 
         
-        fs.writeFileSync('./.twig/HEAD', "main", 'utf8');
+        fs.writeFileSync('./.twig/HEAD', "master", 'utf8');
 
-        newBranch.run("main", hash(JSON.stringify(commitinfo)))
+        newBranch.run("master", hash(JSON.stringify(commitinfo)))
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         spinner.succeed(chalk.green(answer) + " initialized")
@@ -430,6 +430,32 @@ const cli = yargs(hideBin(process.argv))
     newBranch.run(argv.name, getParent.get(parentBranch).commit_hash)
 
     console.log("New branch " + chalk.magenta.bold(argv.name) + " created")
+
+      }
+  ).command(
+    'checkout <name>', 
+    'checkout branch', 
+    (yargs) => {
+      return yargs.positional('name', {
+        describe: 'name of branch',
+        type: 'string',
+      })
+    }, 
+    (argv) => {
+      const db = getDb();
+
+      const exists = db.prepare(`
+    SELECT * FROM branches
+    WHERE name = ?
+    `);
+
+    if (exists.get(argv.name) == undefined){
+      console.log('Branch does not exist')
+    } else {
+      fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
+      console.log("Current branch: " + chalk.magenta(argv.name))
+    }
+      
 
       }
   )
