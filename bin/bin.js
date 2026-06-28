@@ -380,7 +380,13 @@ const cli = yargs(hideBin(process.argv))
     WHERE hash = ?
     `);
 
-    let hash = fs.readFileSync("./.twig/HEAD", "utf8");
+    const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+        const getParent = db.prepare(`
+    SELECT commit_hash FROM branches
+    WHERE name = ?
+    `);
+
+    let hash = getParent.get(parentBranch).commit_hash
 
    const historyArr = []; 
 
