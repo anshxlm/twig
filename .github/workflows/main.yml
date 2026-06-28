@@ -24,13 +24,14 @@ jobs:
 
       - name: Initialize repository
         run: |
+          mkdir playground
+          cd playground
           mkdir testFolder
-          cd testFolder
           twig init
 
       - name: Test commit
         run: |
-          cd testFolder
+          cd playground
           echo "hello" > file.txt
           twig commit -m "first commit"
           twig log
