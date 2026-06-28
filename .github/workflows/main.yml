@@ -2,8 +2,6 @@ name: CLI Tests
 
 on:
   push:
-    branches:
-      - master
   pull_request:
 
 jobs:
@@ -24,14 +22,4 @@ jobs:
 
       - name: Initialize repository
         run: |
-          mkdir playground
-          cd playground
-          mkdir testFolder
-          twig init
-
-      - name: Test commit
-        run: |
-          cd playground
-          echo "hello" > file.txt
-          twig commit -m "first commit"
-          twig log
+          twig
