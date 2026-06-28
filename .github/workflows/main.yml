@@ -25,12 +25,11 @@ jobs:
         run: |
           mkdir testrepo
           cd testrepo
-          mgit init
+          twig init
 
       - name: Test commit
         run: |
           cd testrepo
           echo "hello" > file.txt
-          mgit add .
-          mgit commit -m "first commit"
-          mgit log
+          twig commit -m "first commit"
+          twig log
