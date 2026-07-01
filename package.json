@@ -1,7 +1,7 @@
 {
   "name": "twig",
   "version": "1.0.0",
-  "description": "",
+  "description": "smarter version control",
   "main": "index.js",
   "bin": "./bin/bin.js",
   "scripts": {
