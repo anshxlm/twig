@@ -8,10 +8,8 @@ import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes } from 'node:crypto'
 import path from "path";
 import Database from 'better-sqlite3';import { create } from 'node:domain';
-;
 
 let db;
-
 export function getDb() {
     if (!db) {
         db = new Database("./.twig/tree.db");
@@ -73,8 +71,6 @@ function readTree(where) {
 
     return treeHash;
 }
-
-
 function generateTree( where ){
 
 const dirs = []
@@ -186,7 +182,6 @@ for (const file of allFiles) {
     }
 }
 }
-
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
