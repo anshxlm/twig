@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import yargs from 'yargs';
+import express from 'express';
 import { hideBin } from 'yargs/helpers';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -8,6 +9,11 @@ import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes } from 'node:crypto'
 import path from "path";
 import Database from 'better-sqlite3';import { create } from 'node:domain';
+import { fileURLToPath } from 'url';
+import { get } from 'node:https';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let db;
 export function getDb() {
@@ -118,6 +124,31 @@ function consoleTree(treeHash, indent = "") {
         }
     }
 }
+
+function getBranchCommitHistory(branch_hash){
+
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash = ?
+    `);
+
+  let hash = branch_hash
+
+   const historyArr = []; 
+
+  while (hash) {
+
+    const commit = JSON.parse(getObject.get(hash).data);
+
+    historyArr.push({hash:hash, message:commit.message})
+
+    hash = commit.parent;
+} 
+
+  return historyArr
+
+}
+
 
 function createBranchTree(treeHash, indent = "") {
   const db = getDb();
@@ -419,6 +450,7 @@ const cli = yargs(hideBin(process.argv))
     console.log(msg.message  + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
     }
   }
+
   console.log('\nRoot')
   consoleTree(JSON.parse(getObject.get(getParent.get(parentBranch).commit_hash).data).tree)
 
@@ -485,7 +517,43 @@ const cli = yargs(hideBin(process.argv))
     (argv) => {
       const db = getDb();
 
-      
+      const getBranches = db.prepare(`
+        SELECT * from branches
+        `)
+      const getBranchCommits = db.prepare(`
+        SELECT * from branches
+        WHERE name = ?
+        `)
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/api/branches/:branch', (req, res) => {
+  res.send(getBranchCommitHistory(getBranchCommits.get(req.params.branch).commit_hash))
+
+});
+
+app.get('/api/allBranches', (req, res) => {
+  res.send(getBranches.all())
+
+});
+
+app.get('/api/commits', (req, res) => {
+  res.send(getCommits.all())
+});
+
+app.get('/branch/:branch', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+});
+
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
       
 
       }

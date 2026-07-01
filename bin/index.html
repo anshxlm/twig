@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array to Elements</title>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script>
+
+const splitPath = window.location.pathname.split('/').filter(Boolean);
+
+if (splitPath.length == 0){
+
+       fetch('/api/allBranches')
+    .then(res => res.json())
+    .then(items => {
+
+items.forEach(item => {
+            const element = document.createElement('div');
+            const link = document.createElement("a");
+            link.href = "/branch/" + item.name;
+            link.textContent = item.name;
+            container.appendChild(element);
+            container.appendChild(link);
+        });
+
+
+    });
+
+} if (splitPath[0] == "branch"){
+
+    if (splitPath.length == 2){
+    
+    fetch('/api/branches/' + splitPath[1])
+    .then(res => res.json())
+    .then(items => {
+
+items.toReversed().forEach(item => {
+            const element = document.createElement('div');
+            const link = document.createElement("a");
+            link.href = "";
+            link.textContent = item.message + ' - ' + item.hash.slice(0, 8);
+            container.appendChild(element);
+            container.appendChild(link);
+        });
+
+
+    
+})
+}
+}
+    </script>
+</body>
+</html>
