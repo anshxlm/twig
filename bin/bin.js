@@ -477,6 +477,18 @@ const cli = yargs(hideBin(process.argv))
       
 
       }
+  ).command(
+    'gui', 
+    'launch GUI', 
+    (yargs) => {
+    }, 
+    (argv) => {
+      const db = getDb();
+
+      
+      
+
+      }
   )
   .help()
   .parse()
