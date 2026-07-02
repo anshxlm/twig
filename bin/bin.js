@@ -125,6 +125,33 @@ function consoleTree(treeHash, indent = "") {
     }
 }
 
+function guiTree(treeHash, indent = "",) {
+  const db = getDb();
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash LIKE ?
+    `)
+
+  const guiArray = []
+
+    const treeIn = JSON.parse(getObject.get(treeHash).data);
+
+    for (let i = 0; i < treeIn.length; i++) {
+
+        const last = i === treeIn.length - 1;
+
+        guiArray.push(treeIn[i]);
+
+        if (treeIn[i].type === "tree") {
+            guiTree(treeIn[i].hash,indent + "│    ",);
+        }
+    }
+  
+    return guiArray
+}
+
+
+
 function getBranchCommitHistory(branch_hash){
 
   const getObject = db.prepare(`
@@ -524,6 +551,11 @@ const cli = yargs(hideBin(process.argv))
         SELECT * from branches
         WHERE name = ?
         `)
+      
+        const getObjectByHash = db.prepare(`
+        SELECT * from objects
+        WHERE hash = ?
+        `)
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -542,12 +574,31 @@ app.get('/api/allBranches', (req, res) => {
 
 });
 
-app.get('/api/commits', (req, res) => {
-  res.send(getCommits.all())
+app.get('/api/commit/fileTree/:commit', (req, res) => {
+  res.send(guiTree(JSON.parse(getObjectByHash.get(req.params.commit).data).tree))
+});
+
+app.get('/api/commit/folderTree/:commit', (req, res) => {
+  res.send(guiTree(req.params.commit))
 });
 
 app.get('/branch/:branch', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'))
+});
+
+app.get('/branch/:branch/*path', (req, res) => {
+
+  if (req.params.path.at(-2) == "file"){
+    const dirname = __dirname.split(`\\`)
+    dirname.pop()
+
+    const file = fs.readFileSync(path.join(dirname.join('/'), '.twig/files', req.params.path.at(-1)), "utf8");
+    res.type("text/plain").send(file);
+
+
+  } else {
+  res.sendFile(path.join(__dirname, 'index.html'))
+  }
 });
 
 

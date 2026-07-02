@@ -38,18 +38,52 @@ items.forEach(item => {
     .then(res => res.json())
     .then(items => {
 
-items.toReversed().forEach(item => {
+items.forEach(item => {
             const element = document.createElement('div');
             const link = document.createElement("a");
-            link.href = "";
+            link.href = window.location.pathname + '/' + item.hash;
             link.textContent = item.message + ' - ' + item.hash.slice(0, 8);
             container.appendChild(element);
             container.appendChild(link);
         });
 
-
-    
 })
+
+
+} 
+if (splitPath.length >= 3) {
+
+    const hash = splitPath.at(-1);
+    const file = splitPath.at(-2) == "file" ? true : false;
+
+if (file){
+
+}
+
+    const endpoint = splitPath.length == 3 ? "/api/commit/fileTree/" : "/api/commit/folderTree/";
+
+    fetch(endpoint + hash)
+        .then(res => res.json())
+        .then(items => {
+
+            items.forEach(item => {
+                const element = document.createElement("div");
+                const link = document.createElement("a");
+
+                link.href = item.type == "tree"
+                        ? window.location.pathname + "/" + item.hash
+                        : window.location.pathname + "/file/" + item.hash;
+
+                link.textContent =
+                    item.type == "tree"
+                        ? "> " + item.name
+                        : item.name;
+
+                container.appendChild(element);
+                container.appendChild(link);
+            });
+
+        });
 }
 }
     </script>
