@@ -175,7 +175,6 @@ function getBranchCommitHistory(branch_hash){
 
 }
 
-
 function createBranchTree(treeHash, indent = "") {
   const db = getDb();
   const getObject = db.prepare(`
