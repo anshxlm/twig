@@ -150,8 +150,6 @@ function guiTree(treeHash, indent = "",) {
     return guiArray
 }
 
-
-
 function getBranchCommitHistory(branch_hash){
 
   const getObject = db.prepare(`
