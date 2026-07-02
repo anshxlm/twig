@@ -11,6 +11,7 @@ import path from "path";
 import Database from 'better-sqlite3';import { create } from 'node:domain';
 import { fileURLToPath } from 'url';
 import { get } from 'node:https';
+import { dirname } from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -529,6 +530,13 @@ const cli = yargs(hideBin(process.argv))
       console.log('Branch does not exist')
     } else {
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
+
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.mkdirSync(dir);
+
+      console.log(generateTree('./testFolder'))
+
+
       console.log("Current branch: " + chalk.magenta(argv.name))
     }
       
@@ -590,7 +598,7 @@ app.get('/branch/:branch/*path', (req, res) => {
     const dirname = __dirname.split(`\\`)
     dirname.pop()
 
-    const file = fs.readFileSync(path.join(dirname.join('/'), '.twig/files', req.params.path.at(-1)), "utf8");
+    const file = fs.readFileSync(path.join(process.cwd(), '.twig/files', req.params.path.at(-1)), "utf8");
     res.type("text/plain").send(file);
 
 
@@ -601,7 +609,7 @@ app.get('/branch/:branch/*path', (req, res) => {
 
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`http://localhost:${PORT}`);
 });
       
 
