@@ -197,6 +197,29 @@ function createBranchTree(treeHash, indent = "") {
     }
 }
 
+
+function getBranchFiles(branch, currPath="/", allFiles = []) {
+  const db = getDb();
+
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash LIKE ?
+    `);
+
+    const treeIn = JSON.parse(getObject.get(branch).data);
+
+    for (const subtree of treeIn) {
+
+        if (subtree.type == "tree") {
+            getBranchFiles(subtree.hash, currPath + subtree.name + '/', allFiles);
+        } else {
+          allFiles.push([currPath, subtree.name, subtree.hash]);
+        }
+    }
+
+    return allFiles
+}
+
 function compareTree(treeHash, path="/", files ={}) {
 const db = getDb();
   const getObject = db.prepare(`
@@ -521,6 +544,16 @@ const cli = yargs(hideBin(process.argv))
     (argv) => {
       const db = getDb();
 
+  const getBranch = db.prepare(`
+    SELECT * FROM branches
+    WHERE name LIKE ?
+    `);
+
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash LIKE ?
+    `);
+
       const exists = db.prepare(`
     SELECT * FROM branches
     WHERE name = ?
@@ -531,11 +564,22 @@ const cli = yargs(hideBin(process.argv))
     } else {
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
 
-      fs.rmSync(dir, { recursive: true, force: true });
-      fs.mkdirSync(dir);
+      fs.rmSync('./testFolder', { recursive: true, force: true });
+      fs.mkdirSync('./testFolder');
 
-      console.log(generateTree('./testFolder'))
+      const branch_commit = getBranch.get(argv.name).commit_hash
+      const treeIn = (JSON.parse(getObject.get(branch_commit).data).tree)
+      const filesToMake = getBranchFiles(treeIn)
 
+
+      for (const file of filesToMake){
+
+      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
+      fs.mkdirSync('./testFolder' + file[0], { recursive: true }, (err) => {
+      });
+      fs.writeFileSync('./testFolder' + file[0] + file[1], content, 'utf8');
+
+      }
 
       console.log("Current branch: " + chalk.magenta(argv.name))
     }
