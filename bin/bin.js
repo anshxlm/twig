@@ -587,75 +587,48 @@ const cli = yargs(hideBin(process.argv))
 
       }
   ).command(
-    'gui', 
-    'launch GUI', 
+    'ai', 
+    '', 
     (yargs) => {
     }, 
-    (argv) => {
+    async (argv) => {
+
+      let active = true
+
+      const commands = ["hello", "hey"]
+
+      function isCommand(text){
+        if (commands.includes(text.split(' ')[0])){
+        return true
+        } else {
+          return false
+        }
+      }
+
       const db = getDb();
+      console.log(chalk.yellow('Use CTRL+C to exit'))
+while (active) {
+    try {
+      const answer = await input({
+         message: chalk.bold(':'),
+         theme:{
+          prefix: chalk.magenta.bold('@twig/ai'),
+          style:{
+            answer:(text) => isCommand(text) ? chalk.greenBright(text) : chalk.redBright(text)
+          }
+         }
+        })
 
-      const getBranches = db.prepare(`
-        SELECT * from branches
-        `)
-      const getBranchCommits = db.prepare(`
-        SELECT * from branches
-        WHERE name = ?
-        `)
+      const command = answer.split(' ')[0]
+
+      } catch (err) {
+        if (err.name === 'ExitPromptError'){
+          console.log('\nExited ' + chalk.magenta.bold('@twig/ai'))
+          active = false;
+        }
+      }
       
-        const getObjectByHash = db.prepare(`
-        SELECT * from objects
-        WHERE hash = ?
-        `)
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/api/branches/:branch', (req, res) => {
-  res.send(getBranchCommitHistory(getBranchCommits.get(req.params.branch).commit_hash))
-
-});
-
-app.get('/api/allBranches', (req, res) => {
-  res.send(getBranches.all())
-
-});
-
-app.get('/api/commit/fileTree/:commit', (req, res) => {
-  res.send(guiTree(JSON.parse(getObjectByHash.get(req.params.commit).data).tree))
-});
-
-app.get('/api/commit/folderTree/:commit', (req, res) => {
-  res.send(guiTree(req.params.commit))
-});
-
-app.get('/branch/:branch', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'))
-});
-
-app.get('/branch/:branch/*path', (req, res) => {
-
-  if (req.params.path.at(-2) == "file"){
-    const dirname = __dirname.split(`\\`)
-    dirname.pop()
-
-    const file = fs.readFileSync(path.join(process.cwd(), '.twig/files', req.params.path.at(-1)), "utf8");
-    res.type("text/plain").send(file);
-
-
-  } else {
-  res.sendFile(path.join(__dirname, 'index.html'))
-  }
-});
-
-
-app.listen(PORT, () => {
-  console.log(`http://localhost:${PORT}`);
-});
-      
+    }
 
       }
   )
