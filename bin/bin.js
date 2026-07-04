@@ -684,7 +684,7 @@ while (active) {
       });
       
       server.listen(4321, () => {
-        exec(`start http://localhost:3000/auth/login?callback=http://localhost:4321`);
+        exec(`start https://twig-server.vercel.app/auth/login?callback=http://localhost:4321`);
       });
       
 
@@ -703,7 +703,7 @@ while (active) {
       const fileBuffer = fs.readFileSync(file);
       formData.append('file', new Blob([fs.readFileSync(file)]));
       formData.append('name', path.basename(file) + '.txt');
-      const res = await fetch('http://localhost:3000/api/push', {
+      const res = await fetch('https://twig-server.vercel.app/api/push', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 
