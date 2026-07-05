@@ -707,19 +707,29 @@ const exportData = {
 
 const json = JSON.stringify(exportData);
 
-
-
-    async function testPush(file){
+    async function testPush(){
 
       const token = fs.readFileSync('.token.txt', 'utf8'); 
       
       const formData = new FormData();
-      const fileBuffer = fs.readFileSync(file);
-      formData.append('file', new Blob([fs.readFileSync(file)]));
-      formData.append('name', path.basename(file));
+      formData.append('name', "testRepo");
       formData.append('sql', json)
 
-      const res = await fetch('http://localhost:3000/api/push', {
+      
+      const files = fs.readdirSync('./.twig/files', {
+        withFileTypes: true 
+    });
+
+    for (const currFile of files) {
+      const fullPath = path.join('./.twig/files/' + currFile.name)
+
+      formData.append(
+        "files",
+        new Blob([fs.readFileSync(fullPath)]),
+        currFile.name
+    );
+
+          const res = await fetch('http://localhost:3000/api/push', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 
@@ -732,16 +742,13 @@ const json = JSON.stringify(exportData);
       if (result.newRefreshToken) {
         fs.writeFileSync('.token.txt', result.newRefreshToken);
       }
+
+
       }
 
-      const files = fs.readdirSync('./.twig/files', {
-        withFileTypes: true 
-    });
-
-    for (const currFile of files) {
-      const fullPath = path.join('./.twig/files/' + currFile.name)
-      testPush(fullPath)
     }
+
+      testPush()
 
     }
   )
