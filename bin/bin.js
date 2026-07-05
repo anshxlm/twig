@@ -712,7 +712,7 @@ const json = JSON.stringify(exportData);
       const token = fs.readFileSync('.token.txt', 'utf8'); 
       
       const formData = new FormData();
-      formData.append('name', "testRepo");
+      formData.append('name', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0]);
       formData.append('sql', json)
 
       
@@ -738,13 +738,17 @@ const json = JSON.stringify(exportData);
       });
 
       const result = await res.json();
-      console.log(result);
+      if (!result.success){
+        console.log(result)
+      }
       if (result.newRefreshToken) {
         fs.writeFileSync('.token.txt', result.newRefreshToken);
       }
 
 
       }
+
+      console.log('Pushed successfully')
 
     }
 
