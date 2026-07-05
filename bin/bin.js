@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { input } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
-import crypto, { randomBytes } from 'node:crypto'
+import crypto, { randomBytes, randomUUID } from 'node:crypto'
 import path from "path";
 import Database from 'better-sqlite3';import { create } from 'node:domain';
 import { fileURLToPath } from 'url';
@@ -326,11 +326,14 @@ const cli = yargs(hideBin(process.argv))
           spinner.fail('twig is already initialized here!')
         } 
         else {
-
-
           spinner.stop()
-          console.log()
+
+           const repoName = await input({ message: 'what is your repository name?' });
+          
         spinner.start()
+
+          fs.writeFileSync('./.twig/CONFIG', repoName + '\n' + 'WARNING: DO NOT EDIT THIS ID. DOING SO WILL FATALLY AFFECT REMOTE' + '\n' + randomUUID(), 'utf8');
+
         const db = getDb();
         db.exec(`
   CREATE TABLE IF NOT EXISTS objects (
@@ -714,8 +717,7 @@ const json = JSON.stringify(exportData);
       const formData = new FormData();
       formData.append('name', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0]);
       formData.append('sql', json)
-
-      
+      formData.append('local_id', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[2])      
       const files = fs.readdirSync('./.twig/files', {
         withFileTypes: true 
     });
@@ -728,6 +730,7 @@ const json = JSON.stringify(exportData);
         new Blob([fs.readFileSync(fullPath)]),
         currFile.name
     );
+  }
 
           const res = await fetch('http://localhost:3000/api/push', {
         method: 'POST',
@@ -739,7 +742,9 @@ const json = JSON.stringify(exportData);
 
       const result = await res.json();
       if (!result.success){
-        console.log(result)
+        console.log(chalk.redBright(result.error))
+      } else {
+          console.log('Pushed successfully')
       }
       if (result.newRefreshToken) {
         fs.writeFileSync('.token.txt', result.newRefreshToken);
@@ -748,13 +753,82 @@ const json = JSON.stringify(exportData);
 
       }
 
-      console.log('Pushed successfully')
-
-    }
 
       testPush()
 
     }
+  ).command(
+    'gui', 
+    'launch GUI', 
+    (yargs) => {
+    }, 
+    (argv) => {
+      const db = getDb();
+
+      const getBranches = db.prepare(`
+        SELECT * from branches
+        `)
+      const getBranchCommits = db.prepare(`
+        SELECT * from branches
+        WHERE name = ?
+        `)
+      
+        const getObjectByHash = db.prepare(`
+        SELECT * from objects
+        WHERE hash = ?
+        `)
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/api/branches/:branch', (req, res) => {
+  res.send(getBranchCommitHistory(getBranchCommits.get(req.params.branch).commit_hash))
+
+});
+
+app.get('/api/allBranches', (req, res) => {
+  res.send(getBranches.all())
+
+});
+
+app.get('/api/commit/fileTree/:commit', (req, res) => {
+  res.send(guiTree(JSON.parse(getObjectByHash.get(req.params.commit).data).tree))
+});
+
+app.get('/api/commit/folderTree/:commit', (req, res) => {
+  res.send(guiTree(req.params.commit))
+});
+
+app.get('/branch/:branch', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'))
+});
+
+app.get('/branch/:branch/*path', (req, res) => {
+
+  if (req.params.path.at(-2) == "file"){
+    const dirname = __dirname.split(`\\`)
+    dirname.pop()
+
+    const file = fs.readFileSync(path.join(process.cwd(), '.twig/files', req.params.path.at(-1)), "utf8");
+    res.type("text/plain").send(file);
+
+
+  } else {
+  res.sendFile(path.join(__dirname, 'index.html'))
+  }
+});
+
+
+app.listen(PORT, () => {
+  console.log(`http://localhost:${PORT}`);
+});
+      
+
+      }
   )
   .help()
   .parse()
