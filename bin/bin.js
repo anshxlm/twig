@@ -684,7 +684,7 @@ while (active) {
       });
       
       server.listen(4321, () => {
-        exec(`start https://twig-server.vercel.app/auth/login?callback=http://localhost:4321`);
+        exec(`start http://localhost:3000/auth/login?callback=http://localhost:4321`);
       });
       
 
@@ -695,6 +695,20 @@ while (active) {
     (yargs) => {}, 
     (argv) => {
 
+      const db = getDb();
+
+      const branches = db.prepare("SELECT * FROM branches").all();
+const objects = db.prepare("SELECT * FROM objects").all();
+
+const exportData = {
+    branches,
+    objects
+};
+
+const json = JSON.stringify(exportData);
+
+
+
     async function testPush(file){
 
       const token = fs.readFileSync('.token.txt', 'utf8'); 
@@ -702,14 +716,17 @@ while (active) {
       const formData = new FormData();
       const fileBuffer = fs.readFileSync(file);
       formData.append('file', new Blob([fs.readFileSync(file)]));
-      formData.append('name', path.basename(file) + '.txt');
-      const res = await fetch('https://twig-server.vercel.app/api/push', {
+      formData.append('name', path.basename(file));
+      formData.append('sql', json)
+
+      const res = await fetch('http://localhost:3000/api/push', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 
         },
         body: formData
       });
+
       const result = await res.json();
       console.log(result);
       if (result.newRefreshToken) {
@@ -718,7 +735,7 @@ while (active) {
       }
 
       const files = fs.readdirSync('./.twig/files', {
-        withFileTypes: true
+        withFileTypes: true 
     });
 
     for (const currFile of files) {
