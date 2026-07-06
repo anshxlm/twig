@@ -360,9 +360,6 @@ const cli = yargs(hideBin(process.argv))
 
         const content = fs.readFileSync(file, 'utf8');
         fs.writeFileSync('./.twig/files/' + hash(content), content, 'utf8');
-  
-        //console.log(`file ${file} saved to ${hash}`);
-
         }
         readTree('./testFolder')
 
@@ -822,11 +819,9 @@ app.get('/branch/:branch/*path', (req, res) => {
   }
 });
 
-
 app.listen(PORT, () => {
   console.log(`http://localhost:${PORT}`);
-});
-      
+});  
 
       }
   )
