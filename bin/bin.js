@@ -678,7 +678,7 @@ while (active) {
       
         if (token) {
           res.end('Success');
-          fs.writeFileSync('.token.txt', token);
+          fs.writeFileSync('./.twig/TOKEN', token);
           console.log('logged in');
           server.closeAllConnections();
           server.close();
@@ -712,7 +712,7 @@ const json = JSON.stringify(exportData);
 
     async function testPush(){
 
-      const token = fs.readFileSync('.token.txt', 'utf8'); 
+      const token = fs.readFileSync('./.twig/TOKEN', 'utf8'); 
       
       const formData = new FormData();
       formData.append('name', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0]);
@@ -747,7 +747,7 @@ const json = JSON.stringify(exportData);
           console.log('Pushed successfully')
       }
       if (result.newRefreshToken) {
-        fs.writeFileSync('.token.txt', result.newRefreshToken);
+        fs.writeFileSync('./.twig/TOKEN', result.newRefreshToken);
       }
 
 
