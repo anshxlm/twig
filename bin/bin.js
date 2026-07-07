@@ -613,7 +613,7 @@ const cli = yargs(hideBin(process.argv))
 
       }
 
-      console.log("Current branch: " + chalk.magenta(argv.name))
+      console.log("Current branch: " + chalk.magenta.bold(argv.name))
     }
       
 
@@ -684,7 +684,7 @@ while (active) {
       });
       
       server.listen(4321, () => {
-        exec(`start http://localhost:3000/auth/login?callback=http://localhost:4321`);
+        exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
       });
       
 
@@ -729,7 +729,7 @@ const json = JSON.stringify(exportData);
     );
   }
 
-          const res = await fetch('http://localhost:3000/api/push', {
+          const res = await fetch('https://twig-cli.vercel.app/api/push', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 
