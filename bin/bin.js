@@ -619,6 +619,23 @@ const cli = yargs(hideBin(process.argv))
 
       }
   ).command(
+    'branches', 
+    'list all branches and their latest commits', 
+    (yargs) => {
+    }, 
+    (argv) => {
+      const db = getDb()
+      const getBranches = db.prepare(`
+        SELECT * FROM branches
+        `)
+      
+      const branches = getBranches.all()
+      for (const branch of branches){
+        console.log('Branch ' + chalk.magenta.bold(branch.name) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)')
+      }
+
+    })
+    .command(
     'ai', 
     '', 
     (yargs) => {
