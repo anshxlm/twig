@@ -27,20 +27,15 @@ twig commit -m "my first change"
 Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## Commands
-<details>
-<summary>Quick access</summary>
+* **[init]()**
+* **[commit]()**
+* **[compare]()**
+* **[log]()**
+* **[branch]()**
+* **[checkout]()**
+* **[gui]()**
+* **[login]()**
+* **[push]()**
 
-* [init]()
-* [commit]()
-* [compare]()
-* [log]()
-* [branch]()
-* [checkout]()
-* [gui]()
-* [login]()
-* [push]()
-
-</details>
-
-
-### init
+## `twig` init
+Initializes twig in current directory. For example, running this command in `C:\Users\user1\myProject` makes the directory `C:\Users\user1\myProject\.twig`. On run, twig asks for a repository name. This is only needed if you have plans to push to remote, 
