@@ -38,4 +38,7 @@ Congrats on getting started with Twig! Read the rest of the features [here](#)
 * **[push]()**
 
 ## `twig` init
-Initializes twig in current directory. For example, running this command in `C:\Users\user1\myProject` makes the directory `C:\Users\user1\myProject\.twig`. On run, twig asks for a repository name. This is only needed if you have plans to push to remote, 
+Initializes twig in current directory. For example, running this command in `C:\Users\user1\myProject` makes the directory `C:\Users\user1\myProject\.twig`. On run, twig asks for a repository name. This is only needed if you have plans to push to remote. 
+
+> [!note]
+> Twig will not succeed in pushing remote if you have a pushed repository with the same name.
