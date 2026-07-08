@@ -592,7 +592,16 @@ const cli = yargs(hideBin(process.argv))
     `);
 
     if (exists.get(argv.name) == undefined){
-      console.log('Branch does not exist')
+      const commit = getObject.get(`${argv.name}%`)
+      if (commit == undefined){
+        console.log(chalk.redBright('Branch/Commit does not exist'))
+      } else {
+
+        console.log('Current HEAD: Commit ' + chalk.magenta.bold(commit.hash.slice(0,8)))
+
+
+      }
+
     } else {
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
 
@@ -613,7 +622,7 @@ const cli = yargs(hideBin(process.argv))
 
       }
 
-      console.log("Current branch: " + chalk.magenta.bold(argv.name))
+      console.log("Current HEAD: Branch " + chalk.magenta.bold(argv.name))
     }
       
 
