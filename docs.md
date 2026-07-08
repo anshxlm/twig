@@ -27,12 +27,20 @@ twig commit -m "my first change"
 Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## Commands
-* init
-* commit
-* compare
-* log
-* branch
-* checkout
-* gui
-* login
-* push
+<details>
+<summary>Quick access</summary>
+
+* [init]()
+* [commit]()
+* [compare]()
+* [log]()
+* [branch]()
+* [checkout]()
+* [gui]()
+* [login]()
+* [push]()
+
+</details>
+
+
+### init
