@@ -27,18 +27,213 @@ twig commit -m "my first change"
 Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## Commands
-* **[init]()**
-* **[commit]()**
-* **[compare]()**
-* **[log]()**
-* **[branch]()**
-* **[checkout]()**
-* **[gui]()**
-* **[login]()**
-* **[push]()**
+| Command | Description |
+|---------|-------------|
+| [`init`](#twig-init) | Initialize a new Twig repository. |
+| [`commit`](#twig-commit) | Create a snapshot of the current project state. |
+| [`compare`](#twig-compare) | Compare two commits, trees, or the working directory. |
+| [`log`](#twig-log) | Display commit history. |
+| [`branch`](#twig-branch) | Create, list, or delete branches. |
+| [`checkout`](#twig-checkout) | Switch branches or restore a previous commit. |
+| [`gui`](#twig-gui) | Launch the local Twig web interface. |
+| [`login`](#twig-login) | Authenticate with Twighub. |
+| [`push`](#twig-push) | Upload commits and objects to a remote repository. |
 
-## `twig` init
-Initializes twig in current directory. For example, running this command in `C:\Users\user1\myProject` makes the directory `C:\Users\user1\myProject\.twig`. On run, twig asks for a repository name. This is only needed if you have plans to push to remote. 
+## `twig init`
 
-> [!note]
-> Twig will not succeed in pushing remote if you have a pushed repository with the same name.
+Initializes a new Twig repository in the current directory by creating a `.twig` directory.
+
+For example, running `twig init` inside `C:\Users\user1\myProject` creates `C:\Users\user1\myProject\.twig`
+
+During initialization, Twig prompts for a repository name. This name is only required if you intend to push the repository to a remote host such as Twighub.
+
+> [!NOTE]
+> Repository names must be unique per user on the remote host. If another repository with the same name already exists in your account, the initial push will be rejected.
+
+## `twig commit`
+
+Creates a snapshot of the current project state.
+
+Twig scans the working directory, stores any new or modified objects, constructs a new tree, and creates a commit that records the project's state at that point in time.
+
+`twig commit -m "Implement authentication"`
+
+Every commit references its parent commit, allowing the complete project history to be reconstructed.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| [`init`](#twig-init) | Initialize a new Twig repository. |
+| [`commit`](#twig-commit) | Create a snapshot of the current project state. |
+| [`compare`](#twig-compare) | Compare commits, trees, or the working directory. |
+| [`log`](#twig-log) | Display commit history. |
+| [`branch`](#twig-branch) | Create, list, or delete branches. |
+| [`checkout`](#twig-checkout) | Switch branches or restore a previous commit. |
+| [`gui`](#twig-gui) | Launch the local Twig web interface. |
+| [`login`](#twig-login) | Authenticate with Twighub. |
+| [`push`](#twig-push) | Upload local commits to a remote repository. |
+
+---
+
+## `twig init`
+
+Initializes a new Twig repository in the current directory by creating a `.twig` directory.
+
+For example, running
+
+```bash
+twig init
+```
+
+inside
+
+```text
+C:\Users\user1\myProject
+```
+
+creates
+
+```text
+C:\Users\user1\myProject\.twig
+```
+
+During initialization, Twig prompts for a repository name. This name is only required if you intend to push the repository to a remote host such as Twighub.
+
+> [!NOTE]
+> Repository names must be unique per user on the remote host. If another repository with the same name already exists in your account, the initial push will be rejected.
+
+---
+
+## `twig compare`
+
+Compares two commits, trees, or the current working directory.
+
+Changed files are categorized as:
+
+- Added
+- Modified
+- Deleted
+- Unchanged
+
+Examples:
+
+```bash
+twig compare
+```
+
+Compare the working directory against the latest commit.
+
+```bash
+twig compare <commitA> <commitB>
+```
+
+Compare any two commits.
+
+---
+
+## `twig log`
+
+Displays the commit history of the current branch.
+
+Each commit includes:
+
+- Commit hash
+- Author
+- Timestamp
+- Commit message
+
+```bash
+twig log
+```
+
+Future versions of Twig will include graphical commit history visualization and merge commit rendering.
+
+---
+
+## `twig branch`
+
+Creates, lists, and deletes branches.
+
+List all branches:
+
+```bash
+twig branch
+```
+
+Create a branch:
+
+```bash
+twig branch feature-login
+```
+
+Delete a branch:
+
+```bash
+twig branch -d feature-login
+```
+
+---
+
+## `twig checkout`
+
+Switches the working directory to another branch or commit.
+
+Switch branches:
+
+```bash
+twig checkout main
+```
+
+Checkout a previous commit:
+
+```bash
+twig checkout <commit>
+```
+
+The working directory is updated to match the snapshot stored by the selected commit.
+
+---
+
+## `twig gui`
+
+Starts Twig's local web interface.
+
+The command launches a local HTTP server and opens your default browser, allowing you to browse commits, inspect branches, compare changes, and manage your repository through a graphical interface.
+
+```bash
+twig gui
+```
+
+---
+
+## `twig login`
+
+Authenticates the local CLI with your Twighub account.
+
+Running the command opens the Twighub authentication page in your browser. After signing in, Twig securely stores a session token locally, allowing future commands such as `twig push` to authenticate automatically.
+
+```bash
+twig login
+```
+
+---
+
+## `twig push`
+
+Uploads local commits and objects to a remote repository.
+
+On the initial push, Twig:
+
+1. Creates the remote repository.
+2. Uploads all blob objects.
+3. Synchronizes commit, tree, and branch metadata.
+
+Subsequent pushes upload only newly created objects and updated branch references, minimizing network usage.
+
+```bash
+twig push
+```
+
+> [!NOTE]
+> A successful `twig login` is required before pushing to a remote repository.
