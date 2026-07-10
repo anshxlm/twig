@@ -4,6 +4,7 @@ import express from 'express';
 import { hideBin } from 'yargs/helpers';
 import chalk from 'chalk';
 import ora from 'ora';
+import envPaths from 'env-paths';
 import { input } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes, randomUUID } from 'node:crypto'
@@ -20,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let db;
-
+const paths = envPaths('twigvcs', {suffix:''});
 export function getDb() {
     if (!db) {
         db = new Database("./.twig/tree.db");
@@ -701,7 +702,7 @@ while (active) {
       
         if (token) {
           res.end('Success');
-          fs.writeFileSync('./.twig/TOKEN', token);
+          fs.writeFileSync(path.join(paths.data, 'TOKEN' ), token);
           console.log('logged in');
           server.closeAllConnections();
           server.close();
@@ -710,8 +711,14 @@ while (active) {
       });
       
       server.listen(4321, () => {
+        console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to exit'))
         exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
       });
+
+      process.on('SIGINT', function() {
+    console.log(chalk.redBright("Login cancelled"))
+        process.exit();
+    });
       
 
     }
@@ -735,7 +742,7 @@ const json = JSON.stringify(exportData);
 
     async function testPush(){
 
-      const token = fs.readFileSync('./.twig/TOKEN', 'utf8'); 
+      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8'); 
       
       const formData = new FormData();
       formData.append('name', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0]);
@@ -770,7 +777,7 @@ const json = JSON.stringify(exportData);
           console.log('Pushed successfully')
       }
       if (result.newRefreshToken) {
-        fs.writeFileSync('./.twig/TOKEN', result.newRefreshToken);
+        fs.writeFileSync(path.join(paths.data, 'TOKEN' ), result.newRefreshToken);
       }
 
 
