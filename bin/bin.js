@@ -694,8 +694,22 @@ while (active) {
     'login', 
     'login to twig-cli', 
     (yargs) => {}, 
-    (argv) => {
-  
+    async (argv) => {
+
+      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8'); 
+
+      const res = await fetch('http://localhost:3000/api/isLogin', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+        },
+      });
+
+      const result = await res.json();
+      if (result.success){
+        console.log(chalk.greenBright('Already logged in'))
+      }
+      else {
       const app = express();
 
 app.get('/', (req, res) => {
@@ -726,7 +740,7 @@ process.on('SIGINT', function() {
   console.log(chalk.redBright("Login cancelled"));
   process.exit();
 });
-      
+}
 
     }
   ).command(
@@ -779,6 +793,7 @@ const json = JSON.stringify(exportData);
 
       const result = await res.json();
       if (!result.success){
+
         console.log(chalk.redBright(result.error))
       } else {
           console.log('Pushed successfully')
