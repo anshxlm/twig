@@ -70,9 +70,11 @@ function readTree(where) {
 
     const entries = [];
 
-    const files = fs.readdirSync(where, {
+    const initalfiles = fs.readdirSync(where, {
         withFileTypes: true
     });
+
+    const files = initalfiles.filter(item => item.parentPath !== ".twig" && item.name !== ".twig")
 
     for (const currFile of files) {
 
@@ -115,13 +117,16 @@ function readTree(where) {
 function generateTree( where ){
 
 const dirs = []
-const files = fs.readdirSync(where, {
+const initalfiles = fs.readdirSync(where, {
   recursive: true,
   withFileTypes:true
 },
  (err) => {
   }
 );
+
+
+const files = initalfiles.filter(item => item.parentPath.startsWith('.twig') !== true && item.name !== ".twig")
 
 for ( let i=0; i<files.length; i++){
 
@@ -351,7 +356,7 @@ const cli = yargs(hideBin(process.argv))
 );
 `);
 
-        const initTree = generateTree('./testFolder')
+        const initTree = generateTree('./')
         
         fs.mkdir('./.twig/files', (err) => {
            
@@ -362,9 +367,9 @@ const cli = yargs(hideBin(process.argv))
         const content = fs.readFileSync(file, 'utf8');
         fs.writeFileSync('./.twig/files/' + hash(content), content, 'utf8');
         }
-        readTree('./testFolder')
+        readTree('./')
 
-        const commitRoot = readTree('./testFolder')
+        const commitRoot = readTree('./')
 
           const insertObject = db.prepare(`
           INSERT INTO objects (hash, type, data)
@@ -411,7 +416,7 @@ const cli = yargs(hideBin(process.argv))
       
       console.log(chalk.bold(chalk.blue("committing with message: ")) + msg)
 
-      const initTree = generateTree('./testFolder')
+      const initTree = generateTree('./')
 
         for (const file of initTree){
         
@@ -424,7 +429,7 @@ const cli = yargs(hideBin(process.argv))
         }
         }
   
-         const commitRoot = readTree('./testFolder')
+         const commitRoot = readTree('./')
 
           const insertObject = db.prepare(`
           INSERT INTO objects (hash, type, data)
@@ -604,22 +609,58 @@ const cli = yargs(hideBin(process.argv))
       }
 
     } else {
+
+      const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
+      const curr_branch_commit = getBranch.get(currHead).commit_hash
+      const cur_treeIn = (JSON.parse(getObject.get(curr_branch_commit).data).tree)
+      const curr_files = getBranchFiles(cur_treeIn)
+      const currRead = generateTree('./')
+      const remote_comparison_files = []
+      const local_comparison_files = []
+      for (const file of curr_files){
+        remote_comparison_files.push([path.join(file[0].slice(1, file[0].length), file[1]), file[2]])
+      }
+
+      for (const file of currRead){
+        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
+      }
+
+      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
+    
+        console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
+      } else {
+    
+
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
 
-      fs.rmSync('./testFolder', { recursive: true, force: true });
-      fs.mkdirSync('./testFolder');
+      const folderPath = './';
+const initalfiles = fs.readdirSync(folderPath)
+const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
 
+for (const file of files) {
+  const curPath = path.join(folderPath, file);
+  try {
+    fs.rmSync(curPath, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') {
+      if (fs.statSync(curPath).isFile()) {
+        fs.writeFileSync(curPath, '');
+      }
+    } {
+      console.error(err.message);
+    }
+  }
+}
       const branch_commit = getBranch.get(argv.name).commit_hash
       const treeIn = (JSON.parse(getObject.get(branch_commit).data).tree)
       const filesToMake = getBranchFiles(treeIn)
 
-
       for (const file of filesToMake){
-
       const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
-      fs.mkdirSync('./testFolder' + file[0], { recursive: true }, (err) => {
+      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
+        console.log(err)
       });
-      fs.writeFileSync('./testFolder' + file[0] + file[1], content, 'utf8');
+      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
 
       }
 
@@ -628,6 +669,7 @@ const cli = yargs(hideBin(process.argv))
       
 
       }
+    }
   ).command(
     'branches', 
     'list all branches and their latest commits', 
