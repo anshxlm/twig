@@ -698,10 +698,10 @@ while (active) {
 
       const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8'); 
 
-      const res = await fetch('http://localhost:3000/api/isLogin', {
+      const res = await fetch('https://twig-cli.vercel.app/api/isLogin', {
         method: 'POST',
         headers: { 
-          'Authorization': `Bearer ${token}` 
+            'Authorization': `Bearer ${token}` 
         },
       });
 
@@ -732,7 +732,7 @@ app.get('/', (req, res) => {
 });
 
 const server = app.listen(4321, () => {
-  console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to exit'));
+  console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to cancel'));
   exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
 });
 
