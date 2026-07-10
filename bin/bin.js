@@ -700,15 +700,17 @@ while (active) {
 
 app.get('/', (req, res) => {
   const token = req.query.token;
-
+ 
   if (token) {
     if (token == "FATAL"){
+      res.send('<script>window.location.replace(\'https://twig-cli.vercel.app/auth/error?error=cli&code=Login%20cancelled\')</script>');
+      server.closeAllConnections()
+      server.close();
       console.log(chalk.redBright("Login cancelled"));
-      process.exit();
     } else {
-    res.send('Success');
+    res.send('<script>window.location.replace(\'https://twig-cli.vercel.app/auth/error?error=cli&code=Successfully%20logged%20in\')</script>');
     fs.writeFileSync(path.join(paths.data, 'TOKEN'), token);
-    console.log('logged in');
+    console.log(chalk.greenBright('Logged in'));
     server.closeAllConnections()
     server.close();
     }
