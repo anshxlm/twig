@@ -696,29 +696,34 @@ while (active) {
     (yargs) => {}, 
     (argv) => {
   
-      const server = http.createServer((req, res) => {
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        const token = url.searchParams.get('token');
-      
-        if (token) {
-          res.end('Success');
-          fs.writeFileSync(path.join(paths.data, 'TOKEN' ), token);
-          console.log('logged in');
-          server.closeAllConnections();
-          server.close();
-          
-        }
-      });
-      
-      server.listen(4321, () => {
-        console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to exit'))
-        exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
-      });
+      const app = express();
 
-      process.on('SIGINT', function() {
-    console.log(chalk.redBright("Login cancelled"))
-        process.exit();
-    });
+app.get('/', (req, res) => {
+  const token = req.query.token;
+
+  if (token) {
+    if (token == "FATAL"){
+      console.log(chalk.redBright("Login cancelled"));
+      process.exit();
+    } else {
+    res.send('Success');
+    fs.writeFileSync(path.join(paths.data, 'TOKEN'), token);
+    console.log('logged in');
+    server.closeAllConnections()
+    server.close();
+    }
+  }
+});
+
+const server = app.listen(4321, () => {
+  console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to exit'));
+  exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
+});
+
+process.on('SIGINT', function() {
+  console.log(chalk.redBright("Login cancelled"));
+  process.exit();
+});
       
 
     }
