@@ -321,6 +321,36 @@ function ancestry(ancestor, descendant){
 
 }
 
+function findCommonBase(currCommit, branchCommit){
+
+  const db = getDb()
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash = ?
+    `);
+
+  let curr = currCommit
+  const visited = new Set();
+
+    while (curr) {
+        visited.add(curr);
+        curr = JSON.parse(getObject.get(curr).data).parent
+    }
+
+    let branchCurr = branchCommit
+
+    while (branchCurr) {
+        if (visited.has(branchCurr))
+          console.log(branchCurr)
+            return branchCurr;
+
+        b = b.parent;
+    }
+
+    return null;
+
+}
+
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
   .usage('Usage: $0 <command> [options]')
@@ -1102,10 +1132,22 @@ app.listen(PORT, () => {
       }
             setParentBranch.run(mergeBranchLatestCommit, currBranch)
             console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
+
+            // ------------------------------------------------------------------------------------------------------------------------------------------------------
+    } else {
+            
+            const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
+            const baseTree = compareTree((JSON.parse(getObject.get(base).data).tree))
+            console.log(baseTree)
+            const currBranchTree = compareTree((JSON.parse(getObject.get(currBranchLatestCommit).data).tree))
+            console.log(currBranchTree)
+            const mergeBranchTree = compareTree(JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree) 
+            console.log(mergeBranchTree)
+
+            console.log(baseTree.at(0))
+            
+
       }
-
-
-// ----------------------------------------------------------------------------------------------------------------------------------------
 
 
     })
