@@ -560,7 +560,7 @@ const cli = yargs(hideBin(process.argv))
 
     }
   ).command(
-    'branch <name> ', 
+    'branch <name>', 
     'create new branch', 
     (yargs) => {
       return yargs.positional('name', {
