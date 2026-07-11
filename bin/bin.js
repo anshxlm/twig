@@ -438,6 +438,8 @@ const cli = yargs(hideBin(process.argv))
         
           
         const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+
+    
         const getParent = db.prepare(`
     SELECT commit_hash FROM branches
     WHERE name = ?
@@ -448,17 +450,26 @@ const cli = yargs(hideBin(process.argv))
     WHERE name = ?;
     `);
 
+          let parent
+          if (getParent.get(parentBranch) == undefined){
+            parent = parentBranch
+          } else {
+            parent = getParent.get(parentBranch).commit_hash
+          }
 
         const commitinfo = {
         tree: commitRoot,
         message: msg,
-        parent:getParent.get(parentBranch).commit_hash,
+        parent:parent,
         when: Date.now()
         };
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
+      if (getParent.get(parentBranch) == undefined){
+          fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+      } else {
         setParentBranch.run(hash(JSON.stringify(commitinfo)), parentBranch)
-        // fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+      }
 
     }
   ).command(
@@ -509,13 +520,19 @@ const cli = yargs(hideBin(process.argv))
     WHERE hash = ?
     `);
 
-    const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
         const getParent = db.prepare(`
     SELECT commit_hash FROM branches
     WHERE name = ?
     `);
 
-    let hash = getParent.get(parentBranch).commit_hash
+      const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+      let hash;
+      if (getParent.get(parentBranch) !== undefined){
+       hash = getParent.get(parentBranch).commit_hash
+      } else {
+        hash = parentBranch
+      }
+    
 
    const historyArr = []; 
 
@@ -538,12 +555,12 @@ const cli = yargs(hideBin(process.argv))
     }
   }
 
-  console.log('\nRoot')
-  consoleTree(JSON.parse(getObject.get(getParent.get(parentBranch).commit_hash).data).tree)
+//  console.log('\nRoot')
+ //deprecated and not needed: consoleTree(JSON.parse(getObject.get(getParent.get(parentBranch).commit_hash).data).tree)
 
     }
   ).command(
-    'branch <name>', 
+    'branch <name> ', 
     'create new branch', 
     (yargs) => {
       return yargs.positional('name', {
@@ -558,7 +575,7 @@ const cli = yargs(hideBin(process.argv))
           INSERT INTO branches (name, commit_hash)
           VALUES (?, ?)
           `);
-
+      
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
         const getParent = db.prepare(`
     SELECT commit_hash FROM branches
@@ -577,6 +594,9 @@ const cli = yargs(hideBin(process.argv))
       return yargs.positional('name', {
         describe: 'name of branch',
         type: 'string',
+      }).option('b', {
+        alias: 'branch',
+        describe: 'create a new branch if checking out a commit'
       })
     }, 
     (argv) => {
@@ -586,6 +606,12 @@ const cli = yargs(hideBin(process.argv))
     SELECT * FROM branches
     WHERE name LIKE ?
     `);
+  
+    const newBranch = db.prepare(`
+          INSERT INTO branches (name, commit_hash)
+          VALUES (?, ?)
+          `);
+      
 
   const getObject = db.prepare(`
     SELECT * FROM objects
@@ -603,15 +629,87 @@ const cli = yargs(hideBin(process.argv))
         console.log(chalk.redBright('Branch/Commit does not exist'))
       } else {
 
-        console.log('Current HEAD: Commit ' + chalk.magenta.bold(commit.hash.slice(0,8)))
+      const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
+      let curr_branch_commit
+      if (exists.get(currHead) !== undefined){
+      curr_branch_commit = getBranch.get(currHead).commit_hash
+      } else {
+        curr_branch_commit = currHead
+      }
 
+      const cur_treeIn = (JSON.parse(getObject.get(curr_branch_commit).data).tree)
+      const curr_files = getBranchFiles(cur_treeIn)
+      const currRead = generateTree('./')
+      const remote_comparison_files = []
+      const local_comparison_files = []
+      for (const file of curr_files){
+        remote_comparison_files.push([path.join(file[0].slice(1, file[0].length), file[1]), file[2]])
+      }
+
+      for (const file of currRead){
+        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
+      }
+
+      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
+    
+        console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
+      } else {
+
+        const folderPath = './';
+const initalfiles = fs.readdirSync(folderPath)
+const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
+
+for (const file of files) {
+  const curPath = path.join(folderPath, file);
+  try {
+    fs.rmSync(curPath, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') {
+      if (fs.statSync(curPath).isFile()) {
+        fs.writeFileSync(curPath, '');
+      }
+    } {
+      console.error(err.message);
+    }
+  }
+}
+      const treeIn = (JSON.parse(getObject.get(`${argv.name}%`).data).tree)
+      const filesToMake = getBranchFiles(treeIn)
+
+      for (const file of filesToMake){
+      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
+      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
+        console.log(err)
+      });
+      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
+
+      }
+
+
+
+      if (argv.b){
+        newBranch.run(argv.b, commit.hash)
+        console.log('Branch ' + chalk.magenta.bold(argv.b) + ' created')
+        console.log('Current HEAD: Branch ' + chalk.magenta.bold(argv.b))
+        fs.writeFileSync('./.twig/HEAD', argv.b, 'utf8');
+
+      } else {
+        console.log('Current HEAD: Commit ' + chalk.magenta.bold(commit.hash.slice(0,8)))
+        fs.writeFileSync('./.twig/HEAD', commit.hash, 'utf8');
+      }
+      }
 
       }
 
     } else {
 
-      const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
-      const curr_branch_commit = getBranch.get(currHead).commit_hash
+            const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
+      let curr_branch_commit
+      if (exists.get(currHead) !== undefined){
+      curr_branch_commit = getBranch.get(currHead).commit_hash
+      } else {
+        curr_branch_commit = currHead
+      }
       const cur_treeIn = (JSON.parse(getObject.get(curr_branch_commit).data).tree)
       const curr_files = getBranchFiles(cur_treeIn)
       const currRead = generateTree('./')
