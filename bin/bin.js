@@ -301,6 +301,26 @@ for (const file of allFiles) {
 }
 }
 
+
+function ancestry(ancestor, descendant){
+  const db = getDb()
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash = ?
+    `);
+
+  let currentHash = descendant
+  while (currentHash){
+      if (currentHash == getObject.get(ancestor).hash){
+          return true
+        }
+        const commit = JSON.parse(getObject.get(currentHash).data);
+        currentHash = commit.parent;
+      }
+    return false
+
+}
+
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
   .usage('Usage: $0 <command> [options]')
@@ -1019,6 +1039,75 @@ app.listen(PORT, () => {
 });  
 
       }
-  )
+  ).command(
+    'merge <name>', 
+    'merge two branches', 
+    (yargs) => {
+      return yargs.positional('name', {
+        describe: 'branch to merge into current branch',
+        type: 'string',
+      })
+    }, 
+    (argv) => {
+      const db = getDb()
+      const branchLatestCommit = db.prepare(`
+    SELECT * FROM branches
+    WHERE name LIKE ?
+    `);
+    const setParentBranch = db.prepare(`
+    UPDATE branches
+    SET commit_hash = ?
+    WHERE name = ?;
+    `);
+
+    const getObject = db.prepare(`
+      SELECT * FROM objects
+      WHERE hash = ?
+      `)
+
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+      const currBranchLatestCommit = branchLatestCommit.get(currBranch).commit_hash
+      const mergeBranchLatestCommit = branchLatestCommit.get(argv.name).commit_hash
+
+      if (ancestry(currBranchLatestCommit, mergeBranchLatestCommit)){
+
+            const folderPath = './';
+            const initalfiles = fs.readdirSync(folderPath)
+            const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
+
+            for (const file of files) {
+  const curPath = path.join(folderPath, file);
+  try {
+    fs.rmSync(curPath, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') {
+      if (fs.statSync(curPath).isFile()) {
+        fs.writeFileSync(curPath, '');
+      }
+    } {
+      console.error(err.message);
+    }
+  }
+            }
+            const treeIn = (JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree)
+            const filesToMake = getBranchFiles(treeIn)
+
+            for (const file of filesToMake){
+            const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
+            fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
+              console.log(err)
+            });
+            fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
+
+      }
+            setParentBranch.run(mergeBranchLatestCommit, currBranch)
+            console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
+      }
+
+
+// ----------------------------------------------------------------------------------------------------------------------------------------
+
+
+    })
   .help()
   .parse()
