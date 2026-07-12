@@ -1153,7 +1153,7 @@ app.listen(PORT, () => {
             const mainHash = currMap.get(path);
             const featureHash = mergeMap.get(path);
 
-            console.log(path, (baseHash == mainHash && mainHash == featureHash ? "Unchanged":"Changed"));
+            console.log(path, (baseHash == mainHash && baseHash == featureHash ? "Unchanged":(baseHash != mainHash ? (baseHash != featureHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
 }
 
       }
