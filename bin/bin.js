@@ -350,6 +350,41 @@ function findCommonBase(currCommit, branchCommit){
 
 }
 
+function classify(baseHash, currHash, mergeHash) {
+
+    if (baseHash === currHash && baseHash === mergeHash) {
+        return {
+            type: "UNCHANGED",
+            hash: baseHash
+        };
+    }
+
+    if (baseHash === currHash) {
+        return {
+            type: "USE_MERGE",
+            hash: mergeHash
+        };
+    }
+
+    if (baseHash === mergeHash) {
+        return {
+            type: "USE_CURRENT",
+            hash: currHash
+        };
+    }
+
+    if (currHash === mergeHash) {
+        return {
+            type: "SAME_CHANGE",
+            hash: currHash
+        };
+    }
+
+    return {
+        type: "CONFLICT"
+    };
+}
+
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
   .usage('Usage: $0 <command> [options]')
@@ -1148,13 +1183,50 @@ app.listen(PORT, () => {
             ...currMap.keys(),
             ...mergeMap.keys()
             ])
+
+                    
+            const merged = new Map();
+            const conflicts = [];
+            
             for (const path of allPaths) {
             const baseHash = baseMap.get(path);
             const currHash = currMap.get(path);
             const mergeHash = mergeMap.get(path);
 
             console.log(path, (baseHash == currHash && baseHash == mergeHash ? "Unchanged":(baseHash != currHash ? (baseHash != mergeHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
-}
+    
+
+            const action = classify(baseHash,currHash,mergeHash);
+
+        switch (action.type) {
+
+        case "UNCHANGED":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "USE_CURRENT":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "USE_MERGE":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "SAME_CHANGE":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "CONFLICT":
+            conflicts.push(path);
+            break;
+    }
+          }
+
+            console.log(conflicts, merged)
 
       }
 
