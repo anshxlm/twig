@@ -1374,8 +1374,6 @@ for (const [filePath, hash] of merged) {
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         setParentBranch.run(hash(JSON.stringify(commitinfo)), currBranch)
-        
-
 
       }
 
