@@ -340,10 +340,12 @@ function findCommonBase(currCommit, branchCommit){
     let branchCurr = branchCommit
 
     while (branchCurr) {
-        if (visited.has(branchCurr))
+        if (visited.has(branchCurr)){
             return branchCurr;
+        } else {
 
-        b = b.parent;
+        branchCurr = JSON.parse(getObject.get(branchCurr).data).parent
+        }
     }
 
     return null;
@@ -387,6 +389,13 @@ function classify(baseHash, currHash, mergeHash) {
 
 function writeTree(node) {
 
+    const db = getDb()
+
+    const insertObject = db.prepare(`
+    INSERT INTO objects (hash, type, data)
+    VALUES (?, ?, ?)
+`);
+
     const entries = [];
 
     for (const [name, dir] of Object.entries(node.directories)) {
@@ -410,14 +419,54 @@ function writeTree(node) {
     }
 
     const treeHash = hash(JSON.stringify(entries));
+try {
 
     insertObject.run(
         treeHash,
         "tree",
         JSON.stringify(entries)
     );
+  } catch (err) {
+    if (err.code !== 'SQLITE_CONSTRAINT_PRIMARYKEY'){
+      throw err
+    }
+  }
 
     return treeHash;
+}
+
+
+function loadCommitToDirectory(treeIn){
+   const folderPath = './';
+   const initalfiles = fs.readdirSync(folderPath)
+  const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
+
+for (const file of files) {
+  const curPath = path.join(folderPath, file);
+  try {
+    fs.rmSync(curPath, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') {
+      if (fs.statSync(curPath).isFile()) {
+        fs.writeFileSync(curPath, '');
+      }
+    } {
+      console.error(err.message);
+    }
+  }
+}
+      const filesToMake = getBranchFiles(treeIn)
+
+      for (const file of filesToMake){
+      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
+      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
+        console.log(err)
+      });
+      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
+
+      }
+
+
 }
 
 
@@ -774,8 +823,9 @@ const cli = yargs(hideBin(process.argv))
         local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
       }
 
-      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
-    
+      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
+        //console.log('LOCAL: ', local_comparison_files.sort())
+        //console.log('REMOTE: ', remote_comparison_files.sort())
         console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
       } else {
 
@@ -847,7 +897,7 @@ for (const file of files) {
         local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
       }
 
-      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
+      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
     
         console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
       } else {
@@ -1209,8 +1259,9 @@ app.listen(PORT, () => {
 
             // ------------------------------------------------------------------------------------------------------------------------------------------------------
     } else {
-            
+            console.log(currBranchLatestCommit, mergeBranchLatestCommit)
             const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
+            console.log(base)
             const baseTree = compareTree((JSON.parse(getObject.get(base).data).tree))
             const currBranchTree = compareTree((JSON.parse(getObject.get(currBranchLatestCommit).data).tree))
             const mergeBranchTree = compareTree(JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree) 
@@ -1297,10 +1348,33 @@ for (const [filePath, hash] of merged) {
 }
 
 
-    
+      const rootHash = writeTree(root);
+
+    const setParentBranch = db.prepare(`
+    UPDATE branches
+    SET commit_hash = ?
+    WHERE name = ?;
+    `);
+
+    const insertObject = db.prepare(`
+          INSERT INTO objects (hash, type, data)
+          VALUES (?, ?, ?)
+          `);
 
 
+      const commitinfo = {
+        tree: rootHash,
+        message: 'Merge',
+        parent:currBranchLatestCommit,
+        when: Date.now()
+        };
 
+
+    loadCommitToDirectory(rootHash)
+
+        insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
+        setParentBranch.run(hash(JSON.stringify(commitinfo)), currBranch)
+        
 
 
       }
