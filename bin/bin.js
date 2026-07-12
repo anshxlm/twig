@@ -385,6 +385,48 @@ function classify(baseHash, currHash, mergeHash) {
     };
 }
 
+function writeTree(node) {
+
+    const entries = [];
+
+    for (const [name, dir] of Object.entries(node.directories)) {
+
+        const treeHash = writeTree(dir);
+
+        entries.push({
+            name,
+            type: "tree",
+            hash: treeHash
+        });
+    }
+
+    for (const [name, hash] of Object.entries(node.files)) {
+
+        entries.push({
+            name,
+            type: "blob",
+            hash
+        });
+    }
+
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+
+    const treeHash = hash(JSON.stringify(entries));
+
+    insertObject.run(
+        treeHash,
+        "tree",
+        JSON.stringify(entries)
+    );
+
+    return treeHash;
+}
+
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
   .usage('Usage: $0 <command> [options]')
@@ -1227,6 +1269,38 @@ app.listen(PORT, () => {
           }
 
             console.log(conflicts, merged)
+
+          const root = {
+    directories: {},
+    files: {}
+};
+
+for (const [filePath, hash] of merged) {
+
+    const parts = filePath.split("/").filter(Boolean);
+
+    let curr = root;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+
+        const dir = parts[i];
+
+        if (!curr.directories[dir]) {
+            curr.directories[dir] = {
+                directories: {},
+                files: {}
+            };
+        }
+
+        curr = curr.directories[dir];
+    }
+
+    curr.files[parts.at(-1)] = hash;
+}
+
+
+
+
 
       }
 
