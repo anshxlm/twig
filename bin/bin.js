@@ -1150,10 +1150,10 @@ app.listen(PORT, () => {
             ])
             for (const path of allPaths) {
             const baseHash = baseMap.get(path);
-            const mainHash = currMap.get(path);
-            const featureHash = mergeMap.get(path);
+            const currHash = currMap.get(path);
+            const mergeHash = mergeMap.get(path);
 
-            console.log(path, (baseHash == mainHash && baseHash == featureHash ? "Unchanged":(baseHash != mainHash ? (baseHash != featureHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
+            console.log(path, (baseHash == currHash && baseHash == mergeHash ? "Unchanged":(baseHash != currHash ? (baseHash != mergeHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
 }
 
       }
