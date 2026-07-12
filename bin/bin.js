@@ -1361,7 +1361,6 @@ for (const [filePath, hash] of merged) {
           VALUES (?, ?, ?)
           `);
 
-
       const commitinfo = {
         tree: rootHash,
         message: 'Merge',
