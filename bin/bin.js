@@ -341,7 +341,6 @@ function findCommonBase(currCommit, branchCommit){
 
     while (branchCurr) {
         if (visited.has(branchCurr))
-          console.log(branchCurr)
             return branchCurr;
 
         b = b.parent;
@@ -1138,14 +1137,24 @@ app.listen(PORT, () => {
             
             const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
             const baseTree = compareTree((JSON.parse(getObject.get(base).data).tree))
-            console.log(baseTree)
             const currBranchTree = compareTree((JSON.parse(getObject.get(currBranchLatestCommit).data).tree))
-            console.log(currBranchTree)
             const mergeBranchTree = compareTree(JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree) 
-            console.log(mergeBranchTree)
+            const baseMap = new Map(Object.entries(baseTree));
+            const currMap = new Map(Object.entries(currBranchTree));
+            const mergeMap = new Map(Object.entries(mergeBranchTree));
 
-            console.log(baseTree.at(0))
-            
+            const allPaths = new Set([
+            ...baseMap.keys(),
+            ...currMap.keys(),
+            ...mergeMap.keys()
+            ])
+            for (const path of allPaths) {
+            const baseHash = baseMap.get(path);
+            const mainHash = currMap.get(path);
+            const featureHash = mergeMap.get(path);
+
+            console.log(path, (baseHash == mainHash && mainHash == featureHash ? "Unchanged":"Changed"));
+}
 
       }
 
