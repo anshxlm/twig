@@ -409,8 +409,6 @@ function writeTree(node) {
         });
     }
 
-    entries.sort((a, b) => a.name.localeCompare(b.name));
-
     const treeHash = hash(JSON.stringify(entries));
 
     insertObject.run(
@@ -1297,6 +1295,9 @@ for (const [filePath, hash] of merged) {
 
     curr.files[parts.at(-1)] = hash;
 }
+
+
+    
 
 
 
