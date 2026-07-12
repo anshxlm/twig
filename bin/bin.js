@@ -340,15 +340,139 @@ function findCommonBase(currCommit, branchCommit){
     let branchCurr = branchCommit
 
     while (branchCurr) {
-        if (visited.has(branchCurr))
+        if (visited.has(branchCurr)){
             return branchCurr;
+        } else {
 
-        b = b.parent;
+        branchCurr = JSON.parse(getObject.get(branchCurr).data).parent
+        }
     }
 
     return null;
 
 }
+
+function classify(baseHash, currHash, mergeHash) {
+
+    if (baseHash === currHash && baseHash === mergeHash) {
+        return {
+            type: "UNCHANGED",
+            hash: baseHash
+        };
+    }
+
+    if (baseHash === currHash) {
+        return {
+            type: "USE_MERGE",
+            hash: mergeHash
+        };
+    }
+
+    if (baseHash === mergeHash) {
+        return {
+            type: "USE_CURRENT",
+            hash: currHash
+        };
+    }
+
+    if (currHash === mergeHash) {
+        return {
+            type: "SAME_CHANGE",
+            hash: currHash
+        };
+    }
+
+    return {
+        type: "CONFLICT"
+    };
+}
+
+function writeTree(node) {
+
+    const db = getDb()
+
+    const insertObject = db.prepare(`
+    INSERT INTO objects (hash, type, data)
+    VALUES (?, ?, ?)
+`);
+
+    const entries = [];
+
+    for (const [name, dir] of Object.entries(node.directories)) {
+
+        const treeHash = writeTree(dir);
+
+        entries.push({
+            name,
+            type: "tree",
+            hash: treeHash
+        });
+    }
+
+    for (const [name, hash] of Object.entries(node.files)) {
+
+        entries.push({
+            name,
+            type: "blob",
+            hash
+        });
+    }
+
+    const treeHash = hash(JSON.stringify(entries));
+try {
+
+    insertObject.run(
+        treeHash,
+        "tree",
+        JSON.stringify(entries)
+    );
+  } catch (err) {
+    if (err.code !== 'SQLITE_CONSTRAINT_PRIMARYKEY'){
+      throw err
+    }
+  }
+
+    return treeHash;
+}
+
+
+function loadCommitToDirectory(treeIn){
+   const folderPath = './';
+   const initalfiles = fs.readdirSync(folderPath)
+  const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
+
+for (const file of files) {
+  const curPath = path.join(folderPath, file);
+  try {
+    fs.rmSync(curPath, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') {
+      if (fs.statSync(curPath).isFile()) {
+        fs.writeFileSync(curPath, '');
+      }
+    } {
+      console.error(err.message);
+    }
+  }
+}
+      const filesToMake = getBranchFiles(treeIn)
+
+      for (const file of filesToMake){
+      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
+      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
+        console.log(err)
+      });
+      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
+
+      }
+
+
+}
+
+
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
@@ -699,8 +823,9 @@ const cli = yargs(hideBin(process.argv))
         local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
       }
 
-      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
-    
+      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
+        //console.log('LOCAL: ', local_comparison_files.sort())
+        //console.log('REMOTE: ', remote_comparison_files.sort())
         console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
       } else {
 
@@ -772,7 +897,7 @@ for (const file of files) {
         local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
       }
 
-      if (JSON.stringify(remote_comparison_files) !== JSON.stringify(local_comparison_files)){
+      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
     
         console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
       } else {
@@ -1134,8 +1259,9 @@ app.listen(PORT, () => {
 
             // ------------------------------------------------------------------------------------------------------------------------------------------------------
     } else {
-            
+            console.log(currBranchLatestCommit, mergeBranchLatestCommit)
             const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
+            console.log(base)
             const baseTree = compareTree((JSON.parse(getObject.get(base).data).tree))
             const currBranchTree = compareTree((JSON.parse(getObject.get(currBranchLatestCommit).data).tree))
             const mergeBranchTree = compareTree(JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree) 
@@ -1148,13 +1274,107 @@ app.listen(PORT, () => {
             ...currMap.keys(),
             ...mergeMap.keys()
             ])
+
+                    
+            const merged = new Map();
+            const conflicts = [];
+            
             for (const path of allPaths) {
             const baseHash = baseMap.get(path);
-            const mainHash = currMap.get(path);
-            const featureHash = mergeMap.get(path);
+            const currHash = currMap.get(path);
+            const mergeHash = mergeMap.get(path);
 
-            console.log(path, (baseHash == mainHash && mainHash == featureHash ? "Unchanged":"Changed"));
+            console.log(path, (baseHash == currHash && baseHash == mergeHash ? "Unchanged":(baseHash != currHash ? (baseHash != mergeHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
+    
+
+            const action = classify(baseHash,currHash,mergeHash);
+
+        switch (action.type) {
+
+        case "UNCHANGED":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "USE_CURRENT":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "USE_MERGE":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "SAME_CHANGE":
+            if (action.hash !== undefined)
+                merged.set(path, action.hash);
+            break;
+
+        case "CONFLICT":
+            conflicts.push(path);
+            break;
+    }
+          }
+
+            console.log(conflicts, merged)
+
+          const root = {
+    directories: {},
+    files: {}
+};
+
+for (const [filePath, hash] of merged) {
+
+    const parts = filePath.split("/").filter(Boolean);
+
+    let curr = root;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+
+        const dir = parts[i];
+
+        if (!curr.directories[dir]) {
+            curr.directories[dir] = {
+                directories: {},
+                files: {}
+            };
+        }
+
+        curr = curr.directories[dir];
+    }
+
+    curr.files[parts.at(-1)] = hash;
 }
+
+
+      const rootHash = writeTree(root);
+
+    const setParentBranch = db.prepare(`
+    UPDATE branches
+    SET commit_hash = ?
+    WHERE name = ?;
+    `);
+
+    const insertObject = db.prepare(`
+          INSERT INTO objects (hash, type, data)
+          VALUES (?, ?, ?)
+          `);
+
+      const commitinfo = {
+        tree: rootHash,
+        message: 'Merge',
+        parent:currBranchLatestCommit,
+        when: Date.now()
+        };
+
+
+    loadCommitToDirectory(rootHash)
+
+        insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
+        setParentBranch.run(hash(JSON.stringify(commitinfo)), currBranch)
+        
+
 
       }
 
