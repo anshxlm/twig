@@ -1430,6 +1430,44 @@ for (const [filePath, hash] of merged) {
       }
 
     }
+    }
+  ).command(
+    'rollback <commit>', 
+    'restores repository to the state at that commit', 
+    (yargs) => {
+      return yargs.positional('commit', {
+        describe: 'commit to rollback to',
+        type: 'string',
+      })
+    }, 
+    async (argv) => {
+
+    const rollback_confirm = await confirm({ message: `${chalk.redBright('Are you sure you would like to rollback?')}` });
+
+    if (rollback_confirm){
+      const db = getDb()
+      const getObject = db.prepare(`
+        SELECT * FROM objects
+        WHERE hash LIKE ?
+        `)
+
+      const commitTree = JSON.parse(getObject.get(`${argv.commit}%`).data).tree
+      loadCommitToDirectory(commitTree)
+
+      const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+      const setParentBranch = db.prepare(`
+    UPDATE branches
+    SET commit_hash = ?
+    WHERE name = ?;
+    `);
+
+    setParentBranch.run(getObject.get(`${argv.commit}%`).hash, currentBranch)
+      
+    console.log(`Successfully rolled back to ${chalk.blueBright(argv.commit)}`)
+
+    }
+
+
     })
   .help()
   .parse()
