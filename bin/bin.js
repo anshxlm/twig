@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import envPaths from 'env-paths';
 import { input } from '@inquirer/prompts';
+import { confirm } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes, randomUUID } from 'node:crypto'
 import path from "path";
@@ -15,7 +16,6 @@ import { get } from 'node:https';
 import { dirname } from 'node:path';
 import http from 'http';
 import { exec } from 'child_process';
-import test from 'node:test';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -383,7 +383,10 @@ function classify(baseHash, currHash, mergeHash) {
     }
 
     return {
-        type: "CONFLICT"
+        type: "CONFLICT",
+        currHash: currHash,
+        mergeHash: mergeHash
+
     };
 }
 
@@ -953,9 +956,10 @@ for (const file of files) {
         SELECT * FROM branches
         `)
       
+      const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       const branches = getBranches.all()
       for (const branch of branches){
-        console.log('Branch ' + chalk.magenta.bold(branch.name) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)')
+        console.log(branch.name == currentBranch ? 'Branch ' + chalk.magenta.bold(branch.name + chalk.hex("#ff7b00")(" (HEAD)")) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)': 'Branch ' + chalk.magenta.bold(branch.name) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)')
       }
 
     })
@@ -1202,7 +1206,7 @@ app.listen(PORT, () => {
         type: 'string',
       })
     }, 
-    (argv) => {
+    async (argv) => {
       const db = getDb()
       const branchLatestCommit = db.prepare(`
     SELECT * FROM branches
@@ -1218,6 +1222,17 @@ app.listen(PORT, () => {
       SELECT * FROM objects
       WHERE hash = ?
       `)
+
+  const exists = db.prepare(`
+    SELECT * FROM branches
+    WHERE name = ?
+    `);
+
+    if (exists.get(argv.name) == undefined){
+
+      console.log(chalk.redBright('Branch provided does not exist'))
+
+    } else {
 
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       const currBranchLatestCommit = branchLatestCommit.get(currBranch).commit_hash
@@ -1255,13 +1270,22 @@ app.listen(PORT, () => {
 
       }
             setParentBranch.run(mergeBranchLatestCommit, currBranch)
+            const BranchDeletion = await confirm({ message: `Would you like to delete branch ${chalk.magenta.bold(argv.name)} after merging?` });
+        if (BranchDeletion){
+
+          const deleteBranch = db.prepare(`
+            DELETE FROM branches
+            WHERE name = ?
+            `)
+
+          deleteBranch.run(argv.name)
+
+        }
             console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
 
             // ------------------------------------------------------------------------------------------------------------------------------------------------------
     } else {
-            console.log(currBranchLatestCommit, mergeBranchLatestCommit)
             const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
-            console.log(base)
             const baseTree = compareTree((JSON.parse(getObject.get(base).data).tree))
             const currBranchTree = compareTree((JSON.parse(getObject.get(currBranchLatestCommit).data).tree))
             const mergeBranchTree = compareTree(JSON.parse(getObject.get(mergeBranchLatestCommit).data).tree) 
@@ -1312,12 +1336,30 @@ app.listen(PORT, () => {
             break;
 
         case "CONFLICT":
-            conflicts.push(path);
+            conflicts.push([path, action.currHash, action.mergeHash]);
             break;
     }
           }
+            
+          if (conflicts.length > 0){
 
-            console.log(conflicts, merged)
+            for (const conflict of conflicts){
+
+              console.log('\nMERGE CONFLICT IN: ' + conflict[0])
+              const keep = await input({ message: `Which branch changes would you like to keep? (${currBranch}, ${argv.name})`});
+              if (keep == currBranch){
+                merged.set(conflict[0], conflict[1])
+              } else if (keep == argv.name) {
+                merged.set(conflict[0], conflict[2])
+
+              }
+
+            }
+            
+
+
+          }  
+          
 
           const root = {
     directories: {},
@@ -1364,7 +1406,7 @@ for (const [filePath, hash] of merged) {
 
       const commitinfo = {
         tree: rootHash,
-        message: 'Merge',
+        message: `Merged ${argv.name} into ${currBranch}`,
         parent:currBranchLatestCommit,
         when: Date.now()
         };
@@ -1374,10 +1416,21 @@ for (const [filePath, hash] of merged) {
 
         insertObject.run(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
         setParentBranch.run(hash(JSON.stringify(commitinfo)), currBranch)
+        const BranchDeletion = await confirm({ message: `Would you like to delete branch ${chalk.magenta.bold(argv.name)} after merging?` });
+        if (BranchDeletion){
 
+          const deleteBranch = db.prepare(`
+            DELETE FROM branches
+            WHERE name = ?
+            `)
+
+          deleteBranch.run(argv.name)
+
+        }
+        console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
       }
 
-
+    }
     })
   .help()
   .parse()
