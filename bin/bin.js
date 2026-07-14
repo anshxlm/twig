@@ -16,6 +16,7 @@ import { get } from 'node:https';
 import { dirname } from 'node:path';
 import http from 'http';
 import { exec } from 'child_process';
+import { Octokit } from "@octokit/core";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -472,6 +473,44 @@ for (const file of files) {
 
 }
 
+async function prepareTree(treeHash, path="", files=[]) {
+
+      const octokit = new Octokit({ auth: "" });
+      const db = getDb()
+
+      const OWNER = "anshxlm";
+      const REPO = "twigtesting";
+      const BRANCH = "main"; 
+    
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash LIKE ?
+    `);
+
+    const treeIn = JSON.parse(getObject.get(treeHash).data)
+
+
+    for (const subtree of treeIn) {
+        if (subtree.type === "tree") {
+            await prepareTree(subtree.hash, path + subtree.name + "/", files);
+        } else {
+        const pathTree = path + subtree.name
+
+        const { data: blobData } = await octokit.request("POST /repos/{owner}/{repo}/git/blobs", {
+      owner: OWNER, repo: REPO, content: fs.readFileSync('./' + pathTree, 'utf8'), encoding: "utf-8" });
+      
+      files.push({
+              path:pathTree,
+              localHash: subtree.hash,
+              type:"blob",
+              mode: "100644",
+              sha: blobData.sha
+            })
+        }
+    }
+
+    return files
+}
 
 
 
@@ -1466,6 +1505,104 @@ for (const [filePath, hash] of merged) {
     console.log(`Successfully rolled back to ${chalk.blueBright(argv.commit)}`)
 
     }
+
+    }).command(
+    'gh', 
+    'pushes to github', 
+    (yargs) => {
+    }, 
+    async (argv) => {
+
+      let branchExists = true
+
+      const octokit = new Octokit({ auth: "" });
+      const db = getDb()
+
+      const getParent = db.prepare(`
+    SELECT * FROM branches
+    WHERE name = ?
+    `);
+
+    const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash = ?
+    `);
+
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
+
+      const OWNER = "anshxlm";
+      const REPO = "twigtesting";
+      const BRANCH = currBranch == "master" ? "main":currBranch; 
+      
+
+      const trees = await prepareTree(JSON.parse(getObject.get(getParent.get(currBranch).commit_hash).data).tree)
+
+      console.log(trees)
+
+      let currentParentSha = null;
+
+    try {
+
+      const { data: refData } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/ref/heads/{branch}",
+      { owner: OWNER, repo: REPO, branch: BRANCH }
+    );
+
+      currentParentSha = refData.object.sha
+  } catch (error) {
+
+    if (error.status === 404) {
+    // 2. Branch doesn't exist!
+    branchExists = false;
+    }
+
+
+  }
+
+    const { data: treeData } = await octokit.request("POST /repos/{owner}/{repo}/git/trees", {
+        owner: OWNER,
+        repo: REPO,
+        tree: trees,
+        base_tree: currentParentSha
+      });
+
+      const { data: commitData } = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
+        owner: OWNER,
+        repo: REPO,
+        message: "my very own commit!",
+        tree: treeData.sha,
+        parents: currentParentSha ? [currentParentSha] : []
+      });
+    
+  if (branchExists){
+  
+    const { data: finalRef } = await octokit.request(
+      "PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
+      {
+        owner: OWNER,
+        repo: REPO,
+        branch: BRANCH,
+        sha: commitData.sha,
+        force: false
+      }
+    );
+
+    console.log(`${finalRef.object.sha}`);
+
+  } else {
+  // Create a brand new branch pointing to your new commit
+  const { data: finalRef } = await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+    owner: OWNER,
+    repo: REPO,
+    ref: `refs/heads/${BRANCH}`, // Must be formatted as refs/heads/branch-name
+    sha: commitData.sha
+  });
+
+  console.log(`${finalRef.object.sha}`);
+
+}
+
+
 
 
     })
