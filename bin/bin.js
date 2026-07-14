@@ -192,7 +192,7 @@ function guiTree(treeHash, indent = "",) {
 }
 
 function getBranchCommitHistory(branch_hash){
-
+  const db = getDb()
   const getObject = db.prepare(`
     SELECT * FROM objects
     WHERE hash = ?
@@ -206,7 +206,7 @@ function getBranchCommitHistory(branch_hash){
 
     const commit = JSON.parse(getObject.get(hash).data);
 
-    historyArr.push({hash:hash, message:commit.message})
+    historyArr.push({hash:hash, message:commit.message, tree:commit.tree})
 
     hash = commit.parent;
 } 
@@ -214,6 +214,42 @@ function getBranchCommitHistory(branch_hash){
   return historyArr
 
 }
+
+
+function getUnpushedCommitHistory(branch_hash){
+  const db = getDb()
+  const getObject = db.prepare(`
+    SELECT * FROM objects
+    WHERE hash = ?
+    `);
+
+  let hash = branch_hash
+  const hasPushed = getObject.get(branch_hash).commit_sha
+
+   const historyArr = []; 
+
+if (!hasPushed){
+
+  while (hash) {
+
+    const commit = JSON.parse(getObject.get(hash).data);
+    const pushed = getObject.get(hash).commit_sha
+
+    if (!pushed){
+    historyArr.push({hash:hash, message:commit.message, tree:commit.tree})
+    hash = commit.parent;
+    }
+  else {
+    break
+  }
+
+} 
+}
+
+  return historyArr.toReversed()
+
+}
+
 
 function createBranchTree(treeHash, indent = "") {
   const db = getDb();
@@ -475,7 +511,7 @@ for (const file of files) {
 
 async function prepareTree(treeHash, path="", files=[]) {
 
-      const octokit = new Octokit({ auth: "" });
+      const octokit = new Octokit({ auth: "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" });
       const db = getDb()
 
       const OWNER = "anshxlm";
@@ -497,7 +533,7 @@ async function prepareTree(treeHash, path="", files=[]) {
         const pathTree = path + subtree.name
 
         const { data: blobData } = await octokit.request("POST /repos/{owner}/{repo}/git/blobs", {
-      owner: OWNER, repo: REPO, content: fs.readFileSync('./' + pathTree, 'utf8'), encoding: "utf-8" });
+      owner: OWNER, repo: REPO, content: fs.readFileSync('./.twig/files/' + subtree.hash, 'utf8'), encoding: "utf-8" });
       
       files.push({
               path:pathTree,
@@ -515,7 +551,7 @@ async function prepareTree(treeHash, path="", files=[]) {
 
 async function deltas(tree1, tree2){
 
-const octokit = new Octokit({ auth: "" });
+const octokit = new Octokit({ auth: "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" });
       const db = getDb()
 
       const OWNER = "anshxlm";
@@ -533,7 +569,7 @@ for (const file of allFiles) {
 
     if (!(file in tree1)) {
       const { data: blobData } = await octokit.request("POST /repos/{owner}/{repo}/git/blobs", {
-      owner: OWNER, repo: REPO, content: fs.readFileSync('./' + file, 'utf8'), encoding: "utf-8" });
+      owner: OWNER, repo: REPO, content: fs.readFileSync('./.twig/files/' + tree2[file], 'utf8'), encoding: "utf-8" });
         deltas.push({
           type:'ADDITION',
           path:file,
@@ -556,7 +592,7 @@ for (const file of allFiles) {
 
     else if (tree1[file] !== tree2[file]) {
       const { data: blobData } = await octokit.request("POST /repos/{owner}/{repo}/git/blobs", {
-      owner: OWNER, repo: REPO, content: fs.readFileSync('./' + file, 'utf8'), encoding: "utf-8" });
+      owner: OWNER, repo: REPO, content: fs.readFileSync('./.twig/files/' + tree2[file], 'utf8'), encoding: "utf-8" });
         deltas.push({
           type:'MODIFY',
           path:file,
@@ -620,7 +656,8 @@ const cli = yargs(hideBin(process.argv))
   CREATE TABLE IF NOT EXISTS objects (
     hash TEXT PRIMARY KEY,
     type TEXT NOT NULL,
-    data TEXT NOT NULL
+    data TEXT NOT NULL,
+    commit_sha TEXT NULL
 );
 `);
 
@@ -1573,14 +1610,23 @@ for (const [filePath, hash] of merged) {
     }, 
     async (argv) => {
 
+      const ALREADY_PUSHED = true;
+
       let branchExists = true
 
-      const octokit = new Octokit({ auth: "" });
+      const octokit = new Octokit({ auth: "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" });
       const db = getDb()
 
       const getParent = db.prepare(`
     SELECT * FROM branches
     WHERE name = ?
+    `);
+
+    
+      const update_commit_sha = db.prepare(`
+    UPDATE objects
+    SET commit_sha = ?
+    WHERE hash = ?;
     `);
 
     const getObject = db.prepare(`
@@ -1593,11 +1639,6 @@ for (const [filePath, hash] of merged) {
       const OWNER = "anshxlm";
       const REPO = "twigtesting";
       const BRANCH = currBranch == "master" ? "main":currBranch; 
-      
-
-      const trees = await prepareTree(JSON.parse(getObject.get(getParent.get(currBranch).commit_hash).data).tree)
-
-      console.log(trees)
 
       let currentParentSha = null;
 
@@ -1612,12 +1653,36 @@ for (const [filePath, hash] of merged) {
   } catch (error) {
 
     if (error.status === 404) {
-    // 2. Branch doesn't exist!
     branchExists = false;
     }
 
 
   }
+
+  let commitList
+if (!ALREADY_PUSHED){
+  commitList = getBranchCommitHistory(getParent.get(currBranch).commit_hash).toReversed()
+  console.log(commitList)
+}  else {
+
+  commitList = getUnpushedCommitHistory(getParent.get(currBranch).commit_hash)
+
+}
+
+  for (let i = 0; i<commitList.length; i++){
+
+  let trees
+
+  if (!ALREADY_PUSHED){
+      trees = await prepareTree(commitList[i].tree)
+  } else {
+    const parent_commit = JSON.parse(getObject.get(commitList[i].hash).data).parent
+    trees = await deltas(compareTree(JSON.parse(getObject.get(parent_commit).data).tree), compareTree(commitList[i].tree))
+  }
+    
+   if (trees.length == 0){
+    continue
+   } else {
 
     const { data: treeData } = await octokit.request("POST /repos/{owner}/{repo}/git/trees", {
         owner: OWNER,
@@ -1629,10 +1694,18 @@ for (const [filePath, hash] of merged) {
       const { data: commitData } = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
         owner: OWNER,
         repo: REPO,
-        message: "my very own commit!",
+        message: commitList[i].message,
         tree: treeData.sha,
         parents: currentParentSha ? [currentParentSha] : []
       });
+    
+    update_commit_sha.run(commitData.sha, commitList[i].hash)
+    currentParentSha = commitData.sha;
+
+  }
+}
+  
+
     
   if (branchExists){
   
@@ -1642,7 +1715,7 @@ for (const [filePath, hash] of merged) {
         owner: OWNER,
         repo: REPO,
         branch: BRANCH,
-        sha: commitData.sha,
+        sha: currentParentSha,
         force: false
       }
     );
@@ -1655,30 +1728,23 @@ for (const [filePath, hash] of merged) {
     owner: OWNER,
     repo: REPO,
     ref: `refs/heads/${BRANCH}`, // Must be formatted as refs/heads/branch-name
-    sha: commitData.sha
+    sha: currentParentSha
   });
 
   console.log(`${finalRef.object.sha}`);
-
 }
 
     }).command(
-      'cmp <c1> <c2>', 
+      'cmp', 
     'compare two commits', 
     (yargs) => {
-      return yargs.positional('c1', {
-        describe: 'commit 1 to compare',
-        type: 'string',
-      }).positional('c2', {
-        describe: 'commit 2 to compare',
-        type: 'string',
-      })
+
     }, 
     async (argv) => {
       
       let branchExists = true
 
-      const octokit = new Octokit({ auth: "" });
+      const octokit = new Octokit({ auth: "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" });
       const db = getDb()
 
       const getParent = db.prepare(`
@@ -1697,8 +1763,8 @@ for (const [filePath, hash] of merged) {
       const REPO = "twigtesting";
       const BRANCH = currBranch == "master" ? "main":currBranch; 
       
-
-      const trees = await deltas(compareTree(JSON.parse(getObject.get(`${argv.c1}%`).data).tree), compareTree(JSON.parse(getObject.get(`${argv.c2}%`).data).tree))
+      console.log(getUnpushedCommitHistory(getParent.get(currBranch).commit_hash)[0])
+      const trees = await deltas(compareTree(getUnpushedCommitHistory(getParent.get(currBranch).commit_hash)[0]), compareTree(getUnpushedCommitHistory(getParent.get(currBranch).commit_hash)[1]))
 
 
       console.log(trees)
@@ -1766,6 +1832,22 @@ for (const [filePath, hash] of merged) {
 
 }
       
+    }).command(
+      'test', 
+    '', 
+    (yargs) => {
+    }, 
+    async (argv) => {
+      const db = getDb()
+      const getBranch = db.prepare(`
+    SELECT * FROM branches
+    WHERE name LIKE ?
+    `);
+
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+      console.log(getUnpushedCommitHistory(getBranch.get(currBranch).commit_hash))
+
+
     })
   .help()
   .parse()
