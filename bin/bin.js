@@ -128,6 +128,18 @@ function deleteBranch(name){
 
 }
 
+function updateCommitSha(commit, sha){
+  const db = getDb()
+  const update_commit_sha = db.prepare(`
+    UPDATE objects
+    SET commit_sha = ?
+    WHERE hash = ?;
+    `);
+  return update_commit_sha.run(sha, commit)
+
+}
+
+// --------------------------------------------------------------------------------------------
 
 /*
 
@@ -832,12 +844,6 @@ console.timeEnd("Tree")
           
         const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
 
-    
-        const getParent = db.prepare(`
-    SELECT commit_hash FROM branches
-    WHERE name = ?
-    `);
-
           let parent
           if (getBranch(parentBranch) == undefined){
             parent = parentBranch
@@ -916,13 +922,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     (argv) => {
       const db = getDb();
 
-      
-
-        const getParent = db.prepare(`
-    SELECT commit_hash FROM branches
-    WHERE name = ?
-    `);
-
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
       let hash;
       if (getBranch(parentBranch) !== undefined){
@@ -969,10 +968,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       const db = getDb();
       
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
-        const getParent = db.prepare(`
-    SELECT commit_hash FROM branches
-    WHERE name = ?
-    `);
 
     newBranch(argv.name, getBranch(parentBranch).commit_hash)
 
@@ -994,10 +989,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     (argv) => {
       const db = getDb();
 
-      const exists = db.prepare(`
-    SELECT * FROM branches
-    WHERE name = ?
-    `);
 
     if (getBranch(argv.name) == undefined){
       const commit = getObject(`${argv.name}%`)
@@ -1332,16 +1323,6 @@ const json = JSON.stringify(exportData);
     (argv) => {
       const db = getDb();
 
-      const getBranchCommits = db.prepare(`
-        SELECT * from branches
-        WHERE name = ?
-        `)
-      
-        const getObjectByHash = db.prepare(`
-        SELECT * from objects
-        WHERE hash = ?
-        `)
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -1350,7 +1331,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/branches/:branch', (req, res) => {
-  res.send(getBranchCommitHistory(getBranchCommits.get(req.params.branch).commit_hash))
+  res.send(getBranchCommitHistory(getBranch(req.params.branch).commit_hash))
 
 });
 
@@ -1360,7 +1341,7 @@ app.get('/api/allBranches', (req, res) => {
 });
 
 app.get('/api/commit/fileTree/:commit', (req, res) => {
-  res.send(guiTree(JSON.parse(getObjectByHash.get(req.params.commit).data).tree))
+  res.send(guiTree(JSON.parse(getObject(req.params.commit).data).tree))
 });
 
 app.get('/api/commit/folderTree/:commit', (req, res) => {
@@ -1448,12 +1429,7 @@ app.listen(PORT, () => {
             const BranchDeletion = await confirm({ message: `Would you like to delete branch ${chalk.magenta.bold(argv.name)} after merging?` });
         if (BranchDeletion){
 
-          const deleteBranch = db.prepare(`
-            DELETE FROM branches
-            WHERE name = ?
-            `)
-
-          deleteBranch.run(argv.name)
+          deleteBranch(argv.name)
 
         }
             console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
@@ -1582,12 +1558,7 @@ for (const [filePath, hash] of merged) {
         const BranchDeletion = await confirm({ message: `Would you like to delete branch ${chalk.magenta.bold(argv.name)} after merging?` });
         if (BranchDeletion){
 
-          const deleteBranch = db.prepare(`
-            DELETE FROM branches
-            WHERE name = ?
-            `)
-
-          deleteBranch.run(argv.name)
+          deleteBranch(argv.name)
 
         }
         console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
@@ -1643,21 +1614,7 @@ for (const [filePath, hash] of merged) {
 
       const octokit = new Octokit({ auth: GITHUB_SECRET });
       const db = getDb()
-
-      const getParent = db.prepare(`
-    SELECT * FROM branches
-    WHERE name = ?
-    `);
-
     
-      const update_commit_sha = db.prepare(`
-    UPDATE objects
-    SET commit_sha = ?
-    WHERE hash = ?;
-    `);
-
-    
-
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
 
       const OWNER = "anshxlm";
@@ -1714,7 +1671,7 @@ if (commitList.length == 0){
   console.timeEnd('PREPARE')
   spinner.text = 'Processing...'
    if (trees.length == 0){
-    update_commit_sha.run('NOT PUSHED', commitList[i].hash)
+    updateCommitSha('NOT PUSHED', commitList[i].hash)
     continue
    } else {
 
@@ -1733,7 +1690,7 @@ if (commitList.length == 0){
         parents: currentParentSha ? [currentParentSha] : []
       });
     
-    update_commit_sha.run(commitData.sha, commitList[i].hash)
+    updateCommitSha(commitData.sha, commitList[i].hash)
     currentParentSha = commitData.sha;
 
   }
@@ -1777,10 +1734,6 @@ if (commitList.length == 0){
     }, 
     async (argv) => {
       const db = getDb()
-      const getBranch = db.prepare(`
-    SELECT * FROM branches
-    WHERE name LIKE ?
-    `);
       /*
        const octokit = new Octokit({ auth: GITHUB_SECRET });
       
@@ -1807,10 +1760,8 @@ async function pullFromRemote() {
     branch: BRANCH
   });
   const remoteCommitSha = refData.object.sha;
-
-  const getBranchCommit = db.prepare("SELECT commit_hash FROM branches WHERE name = ?");
     
-  const localCommitSha = getBranchCommit.get(currBranch).commit_hash;
+  const localCommitSha = getBranch(currBranch).commit_hash;
 
   console.log(localCommitSha)
   console.log(getObject(localCommitSha))
@@ -1895,10 +1846,6 @@ async function pullFromRemote() {
       })
     );
   }
-
-  // 7. Update your local SQLite DB and branch pointer to the new commit
-  const updateBranch = db.prepare("UPDATE branches SET commit_hash = ? WHERE name = ?");
-  updateBranch.run(remoteCommitSha, currBranch);
 
   console.log(`Successfully pulled and updated local filesystem to commit ${remoteCommitSha.slice(0, 7)}!`);
 }
