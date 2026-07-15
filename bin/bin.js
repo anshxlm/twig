@@ -22,6 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let db;
 const paths = envPaths('twigvcs', {suffix:''});
+
 export function getDb() {
     if (!db) {
         db = new Database("./.twig/tree.db");
@@ -38,7 +39,6 @@ async function promptToken(){
 }
 
 let GITHUB_SECRET
-
 try {
   GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
 } catch (error){
@@ -50,7 +50,6 @@ try {
 
 // DATABASE FUNCTIONS
 // ------------------------------------------------------------------------------------------
-
 function insertObject(hash,type,data){
     const db = getDb()
     const insertObject = db.prepare(`
@@ -59,7 +58,6 @@ function insertObject(hash,type,data){
     `);
     return insertObject.run(hash,type,data)
 }
-
 function getObject(hash){
   const db = getDb()
   const getObject = db.prepare(`
@@ -68,7 +66,6 @@ function getObject(hash){
     `)
   return getObject.get(hash)
 }
-
 function getObjectLike(hash){
   const db = getDb()
   const getObject = db.prepare(`
@@ -77,8 +74,6 @@ function getObjectLike(hash){
     `);
   return getObject.get(hash)
 }
-
-
 function setParentBranch(hash, branchName){
   const db = getDb()
   const setParentBranch = db.prepare(`
@@ -89,7 +84,6 @@ function setParentBranch(hash, branchName){
   return setParentBranch.run(hash,branchName)
 
 }
-
 function getBranch(name){
   const db = getDb()
   const getParent = db.prepare(`
@@ -98,7 +92,6 @@ function getBranch(name){
     `);
   return getParent.get(name)
 }
-
 function newBranch(name, commit_hash){
   const db = getDb()
   const newBranch = db.prepare(`
@@ -107,16 +100,14 @@ function newBranch(name, commit_hash){
           `);
   return newBranch.run(name, commit_hash)
 }
-
 function getAllBranches(){
   const db = getDb()
   const getBranches = db.prepare(`
         SELECT * FROM branches
         `)
-  return getBranches()
+  return getBranches.all()
 
 }
-
 function deleteBranch(name){
   const db = getDb()
   const deleteBranch = db.prepare(`
@@ -127,7 +118,6 @@ function deleteBranch(name){
   return deleteBranch.run(name)
 
 }
-
 function updateCommitSha(commit, sha){
   const db = getDb()
   const update_commit_sha = db.prepare(`
@@ -138,38 +128,7 @@ function updateCommitSha(commit, sha){
   return update_commit_sha.run(sha, commit)
 
 }
-
 // --------------------------------------------------------------------------------------------
-
-/*
-
-function uploadTwig(where){
-  
-      const files = fs.readdirSync(where, {
-        withFileTypes: true
-    });
-
-    for (const currFile of files) {
-
-        const fullPath = path.join(where, currFile.name);
-
-        if (currFile.isDirectory()) {
-
-            const treeHash = uploadTwig(fullPath);
-
-        } else {
-            const content = fs.readFileSync(fullPath, 'utf8');
-
-            entries.push({
-                name: currFile.name,
-                type: "blob",
-                hash: hash(content)
-            });
-
-        }
-    }
-}
-*/
 
 function readTree(where, blobHashes) {
 
@@ -222,7 +181,6 @@ function readTree(where, blobHashes) {
 
     return treeHash;
 }
-
 function generateTree(dir, files = []) {
 
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -247,11 +205,9 @@ function generateTree(dir, files = []) {
 
     return files;
 }
-
 function hash(data) {
     return crypto.createHash("sha1").update(data).digest("hex");
 }
-
 function consoleTree(treeHash, indent = "") {
   const db = getDb();
 
@@ -268,7 +224,6 @@ function consoleTree(treeHash, indent = "") {
         }
     }
 }
-
 function guiTree(treeHash, indent = "",) {
   const db = getDb();
 
@@ -614,7 +569,6 @@ async function prepareTree(treeHash, path = "", files = [], spinner) {
 
   return files;
 }
-
 async function deltas(tree1, tree2, spinner) {
   const octokit = new Octokit({ auth: GITHUB_SECRET });
   const OWNER = "anshxlm";
@@ -675,8 +629,6 @@ async function deltas(tree1, tree2, spinner) {
 
   return finalDeltas;
 }
-
-
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
@@ -899,19 +851,19 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
 
       
 
-      let currentHash = JSON.parse(getObject(`${argv.c2}%`).data).parent
+      let currentHash = JSON.parse(getObjectLike(`${argv.c2}%`).data).parent
       let first = false;
 
       while (currentHash){
-        if (currentHash == getObject(`${argv.c1}%`).hash){
+        if (currentHash == getObjectLike(`${argv.c1}%`).hash){
           first = true
-          comparison(compareTree(JSON.parse(getObject(`${argv.c1}%`).data).tree), compareTree(JSON.parse(getObject(`${argv.c2}%`).data).tree))
+          comparison(compareTree(JSON.parse(getObjectLike(`${argv.c1}%`).data).tree), compareTree(JSON.parse(getObjectLike(`${argv.c2}%`).data).tree))
         }
-        const commit = JSON.parse(getObject(currentHash).data);
+        const commit = JSON.parse(getObjectLike(currentHash).data);
         currentHash = commit.parent;
       }
       if (!first){
-        comparison(compareTree(JSON.parse(getObject(`${argv.c2}%`).data).tree), compareTree(JSON.parse(getObject(`${argv.c1}%`).data).tree))
+        comparison(compareTree(JSON.parse(getObjectLike(`${argv.c2}%`).data).tree), compareTree(JSON.parse(getObjectLike(`${argv.c1}%`).data).tree))
       }
       
     }
@@ -991,7 +943,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
 
 
     if (getBranch(argv.name) == undefined){
-      const commit = getObject(`${argv.name}%`)
+      const commit = getObjectLike(`${argv.name}%`)
       if (commit == undefined){
         console.log(chalk.redBright('Branch/Commit does not exist'))
       } else {
@@ -1041,7 +993,7 @@ for (const file of files) {
     }
   }
 }
-      const treeIn = (JSON.parse(getObject(`${argv.name}%`).data).tree)
+      const treeIn = (JSON.parse(getObjectLike(`${argv.name}%`).data).tree)
       const filesToMake = getBranchFiles(treeIn)
 
       for (const file of filesToMake){
@@ -1586,12 +1538,12 @@ for (const [filePath, hash] of merged) {
 
       const db = getDb()
 
-      const commitTree = JSON.parse(getObject(`${argv.commit}%`).data).tree
+      const commitTree = JSON.parse(getObjectLike(`${argv.commit}%`).data).tree
       loadCommitToDirectory(commitTree)
 
       const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
 
-    setParentBranch(getObject(`${argv.commit}%`).hash, currentBranch)
+    setParentBranch(getObjectLike(`${argv.commit}%`).hash, currentBranch)
       
     spinner.succeed(`Successfully rolled back to ${chalk.blueBright(argv.commit)}`)
 
