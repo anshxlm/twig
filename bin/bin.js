@@ -33,21 +33,17 @@ export function getDb() {
 
     return db;
 }
-
 async function promptToken(){
       const token = await password({message:'paste your token'})
       fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN'), token);
       console.log(chalk.green('Token saved.'))
 }
-
 let GITHUB_SECRET
 try {
   GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
 } catch (error){
-
   if (error.code == "ENOENT")
     promptToken()
-
 }
 
 /* ----------------------------------------------------------    DATABASE   --------------------------------------------------------------*/
@@ -244,8 +240,6 @@ function consoleFileTree(treeHash, indent = "") {
 
 // returns the tree layout BUT at a tree by tree level
 function treeContents(treeHash, indent = "",) {
-  const db = getDb();
-
   const guiArray = []
 
     const treeIn = JSON.parse(getObject(treeHash).data);
@@ -261,9 +255,7 @@ function treeContents(treeHash, indent = "",) {
 }
 
 // get the commit history of a branch provided a branches latest commit
-function getBranchCommitHistory(branch_hash){
-  const db = getDb()
-  
+function getBranchCommitHistory(branch_hash){  
   let hash = branch_hash
 
    const historyArr = []; 
@@ -282,9 +274,7 @@ function getBranchCommitHistory(branch_hash){
 }
 
 // only return commits of a branch that have not been pushed to github
-function getUnpushedCommitHistory(branch_hash){
-  const db = getDb()
-  
+function getUnpushedCommitHistory(branch_hash){  
 
   let hash = branch_hash
   const hasPushed = getObject(branch_hash).commit_sha
@@ -315,8 +305,6 @@ if (!hasPushed){
 
 // returns ONLY files of a tree, along with file name and hash ***********************************************************
 function getTreeFiles(branch, currPath="/", allFiles = []) {
-  const db = getDb();
-
     const treeIn = JSON.parse(getObject(branch).data);
 
     for (const subtree of treeIn) {
@@ -332,9 +320,7 @@ function getTreeFiles(branch, currPath="/", allFiles = []) {
 }
 
 // returns ONLY files of a tree as well, but in a specific format {path:hash}
-function getTreeFilesAndHash(treeHash, path="", files ={}) {
-const db = getDb();
-  
+function getTreeFilesAndHash(treeHash, path="", files ={}) {  
 
     const treeIn = JSON.parse(getObjectLike(treeHash).data)
 
@@ -375,8 +361,6 @@ for (const file of allFiles) {
 
 // checks if a commit is a descendant of another.
 function ancestry(ancestor, descendant){
-  const db = getDb()
-  
 
   let currentHash = descendant
   while (currentHash){
@@ -392,10 +376,6 @@ function ancestry(ancestor, descendant){
 
 // part of merging algorithm - finds a common commit
 function findCommonBase(currCommit, branchCommit){
-
-  const db = getDb()
-  
-
   let curr = currCommit
   const visited = new Set();
 
@@ -537,8 +517,6 @@ for (const file of files) {
 // sends blobs to github for SHA but ONLY for the first commit of the first push. throttling set to 25
 async function uploadFirstTree(treeHash, path = "", files = [], spinner) {
   const octokit = new Octokit({ auth: GITHUB_SECRET });
-  const db = getDb();
-
   const OWNER = "anshxlm";
   const REPO = "twigtesting";
 
@@ -868,10 +846,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       })
     }, 
     (argv) => {
-      const db = getDb();
-
       
-
       let currentHash = JSON.parse(getObjectLike(`${argv.c2}%`).data).parent
       let first = false;
 
@@ -893,8 +868,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     'commit history', 
     () => {}, 
     (argv) => {
-      const db = getDb();
-
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
       let hash;
       if (getBranch(parentBranch) !== undefined){
@@ -938,7 +911,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       })
     }, 
     (argv) => {
-      const db = getDb();
       
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
 
@@ -960,8 +932,6 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       })
     }, 
     (argv) => {
-      const db = getDb();
-
 
     if (getBranch(argv.name) == undefined){
       const commit = getObjectLike(`${argv.name}%`)
@@ -1115,7 +1085,6 @@ for (const file of files) {
     (yargs) => {
     }, 
     (argv) => {
-      const db = getDb()
       
       const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       const branches = getAllBranches()
@@ -1142,8 +1111,6 @@ for (const file of files) {
           return false
         }
       }
-
-      const db = getDb();
       console.log(chalk.yellow('Use CTRL+C to exit'))
 while (active) {
     try {
@@ -1294,7 +1261,6 @@ const json = JSON.stringify(exportData);
     (yargs) => {
     }, 
     (argv) => {
-      const db = getDb();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1355,7 +1321,6 @@ app.listen(PORT, () => {
       })
     }, 
     async (argv) => {
-      const db = getDb()
 
     if (getBranch(argv.name) == undefined){
 
@@ -1557,8 +1522,6 @@ for (const [filePath, hash] of merged) {
       
     const spinner = ora('Restoring files...').start();
 
-      const db = getDb()
-
       const commitTree = JSON.parse(getObjectLike(`${argv.commit}%`).data).tree
       loadCommitToDirectory(commitTree)
 
@@ -1586,7 +1549,6 @@ for (const [filePath, hash] of merged) {
       let branchExists = true
 
       const octokit = new Octokit({ auth: GITHUB_SECRET });
-      const db = getDb()
     
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
 
@@ -1706,7 +1668,6 @@ if (commitList.length == 0){
     (yargs) => {
     }, 
     async (argv) => {
-      const db = getDb()
       /*
        const octokit = new Octokit({ auth: GITHUB_SECRET });
       
@@ -1718,8 +1679,6 @@ if (commitList.length == 0){
 
 async function pullFromRemote() {
   const octokit = new Octokit({ auth: GITHUB_SECRET });
-  const db = getDb();
-
   const OWNER = "anshxlm";
   const REPO = "twigtesting";
   const currBranch = fs.readFileSync("./.twig/HEAD", "utf8").trim();
