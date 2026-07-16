@@ -14,11 +14,12 @@ import { fileURLToPath } from 'url';
 import { get } from 'node:https';
 import { exec } from 'child_process';
 import { Octokit } from "@octokit/core";
-
+import os from "os";
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
 
+process.env.UV_THREADPOOL_SIZE = String(Math.max(16, os.cpus().length));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let db;
@@ -632,6 +633,22 @@ async function deltaUpload(tree1, tree2, spinner) {
 }
 
 
+function hashFileStream(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha1");
+    const stream = fs.createReadStream(filePath);
+    
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", (err) => reject(err));
+  });
+}
+
+
+
+
+
+
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
 
@@ -774,28 +791,23 @@ const files = initialFiles.filter(file =>
 
 console.time("Tree")
 for (let i = 0; i < files.length; i++) {
+  const file = files[i];
 
-    const file = files[i];
+  spinner.text = `Hashing ${i + 1}/${files.length}`;
 
-    spinner.text = `Hashing ${i + 1}/${files.length}`;
+  const blobHash = await hashFileStream(file);
 
-    const content = fs.readFileSync(file);
+  blobHashes.set(
+    path.resolve(file),
+    blobHash
+  );
 
-    const blobHash = hash(content);
+  const blobPath = `./.twig/files/${blobHash}`;
 
-    blobHashes.set(
-        path.resolve(file),
-        blobHash
-    );
 
-    const blobPath = `./.twig/files/${blobHash}`;
-
-    if (!fs.existsSync(blobPath)) {
-        fs.writeFileSync(blobPath, content);
-    }
-
-    if (i % 250 === 0)
-        await new Promise(r => setImmediate(r));
+  if (!fs.existsSync(blobPath)) {
+    await fs.promises.copyFile(file, blobPath);
+  }
 }
 console.timeEnd("Tree")
 
