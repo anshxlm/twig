@@ -5,48 +5,49 @@ import { hideBin } from 'yargs/helpers';
 import chalk from 'chalk';
 import ora from 'ora';
 import envPaths from 'env-paths';
-import { input, password } from '@inquirer/prompts';
-import { confirm } from '@inquirer/prompts';
+import { input, password, confirm } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
 import crypto, { randomBytes, randomUUID } from 'node:crypto'
 import path from "path";
-import Database from 'better-sqlite3';import { create } from 'node:domain';
+import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { get } from 'node:https';
-import { dirname } from 'node:path';
-import http from 'http';
 import { exec } from 'child_process';
 import { Octokit } from "@octokit/core";
 
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let db;
 const paths = envPaths('twigvcs', {suffix:''});
 export function getDb() {
-    if (!db) {
-        db = new Database("./.twig/tree.db");
-        db.pragma("journal_mode = WAL");
-    }
+  if (!db) {
+      db = new Database("./.twig/tree.db");
+      db.pragma("journal_mode = WAL");
+  }
 
-    return db;
+  return db;
 }
 async function promptToken(){
-      const token = await password({message:'paste your token'})
-      fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN'), token);
-      console.log(chalk.green('Token saved.'))
+    const token = await password({message:'paste your token'})
+    fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN'), token);
+    console.log(chalk.green('Token saved.'))
 }
 let GITHUB_SECRET
 try {
-  GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
+GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
 } catch (error){
-  if (error.code == "ENOENT")
-    promptToken()
+if (error.code == "ENOENT")
+  promptToken()
 }
 
+
 /* ----------------------------------------------------------    DATABASE   --------------------------------------------------------------*/
+
+
 
 function insertObject(hash,type,data){
     const db = getDb()
@@ -136,7 +137,10 @@ function updateCommitSha(commit, sha){
 
 }
 
+
+
 /* ----------------------------------------------------------     ENGINE     --------------------------------------------------------------*/
+
 
 
 // maps the file system into trees and then inserts them into database
@@ -221,7 +225,7 @@ function hash(data) {
     return crypto.createHash("sha1").update(data).digest("hex");
 }
 
-// console logs the tree layout of a tree
+// console logs the tree layout of a tree (deprecated)
 function consoleFileTree(treeHash, indent = "") {
 
     const treeIn = JSON.parse(getObjectLike(treeHash).data);
@@ -238,7 +242,7 @@ function consoleFileTree(treeHash, indent = "") {
     }
 }
 
-// returns the tree layout BUT at a tree by tree level
+// returns the tree contents
 function treeContents(treeHash, indent = "",) {
   const guiArray = []
 
@@ -627,7 +631,11 @@ async function deltaUpload(tree1, tree2, spinner) {
   return finalDeltas;
 }
 
+
+
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
+
+
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
@@ -966,37 +974,8 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
         console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
       } else {
 
-        const folderPath = './';
-const initalfiles = fs.readdirSync(folderPath)
-const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
-
-for (const file of files) {
-  const curPath = path.join(folderPath, file);
-  try {
-    fs.rmSync(curPath, { recursive: true, force: true });
-  } catch (err) {
-    if (err.code === 'EPERM' || err.code === 'EBUSY') {
-      if (fs.statSync(curPath).isFile()) {
-        fs.writeFileSync(curPath, '');
-      }
-    } {
-      console.error(err.message);
-    }
-  }
-}
-      const treeIn = (JSON.parse(getObjectLike(`${argv.name}%`).data).tree)
-      const filesToMake = getTreeFiles(treeIn)
-
-      for (const file of filesToMake){
-      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
-      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
-        console.log(err)
-      });
-      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
-
-      }
-
-
+        const treeIn = (JSON.parse(getObjectLike(`${argv.name}%`).data).tree)
+        loadCommitToDirectory(treeIn)
 
       if (argv.b){
         newBranch(argv.b, commit.hash)
@@ -1674,8 +1653,6 @@ if (commitList.length == 0){
          const { data: data } = await octokit.request("GET /rate_limit")
         console.log(data)
       */
-
-
 
 async function pullFromRemote() {
   const octokit = new Octokit({ auth: GITHUB_SECRET });
