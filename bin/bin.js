@@ -46,21 +46,37 @@ if (error.code == "ENOENT")
 }
 
 
+
 /* ----------------------------------------------------------    DATABASE   --------------------------------------------------------------*/
 
-
-
 function insertObject(hash,type,data){
+  try {
     const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
     const insertObject = db.prepare(`
         INSERT OR IGNORE INTO objects(hash,type,data)
         VALUES(?,?,?)
     `);
     return insertObject.run(hash,type,data)
+
 }
 
 function getObject(hash){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const getObject = db.prepare(`
     SELECT * FROM objects
     WHERE hash = ?
@@ -69,7 +85,15 @@ function getObject(hash){
 }
 
 function getObjectLike(hash){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const getObject = db.prepare(`
     SELECT * FROM objects
     WHERE hash LIKE ?
@@ -78,7 +102,15 @@ function getObjectLike(hash){
 }
 
 function setParentBranch(hash, branchName){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const setParentBranch = db.prepare(`
     UPDATE branches
     SET commit_hash = ?
@@ -89,7 +121,15 @@ function setParentBranch(hash, branchName){
 }
 
 function getBranch(name){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const getParent = db.prepare(`
     SELECT * FROM branches
     WHERE name = ?
@@ -99,7 +139,15 @@ function getBranch(name){
 }
 
 function newBranch(name, commit_hash){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const newBranch = db.prepare(`
           INSERT INTO branches (name, commit_hash)
           VALUES (?, ?)
@@ -108,7 +156,15 @@ function newBranch(name, commit_hash){
 }
 
 function getAllBranches(){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const getBranches = db.prepare(`
         SELECT * FROM branches
         `)
@@ -117,7 +173,15 @@ function getAllBranches(){
 }
 
 function deleteBranch(name){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const deleteBranch = db.prepare(`
             DELETE FROM branches
             WHERE name = ?
@@ -128,7 +192,15 @@ function deleteBranch(name){
 }
 
 function updateCommitSha(commit, sha){
-  const db = getDb()
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+    } else {
+      throw err
+    }
+  }
   const update_commit_sha = db.prepare(`
     UPDATE objects
     SET commit_sha = ?
@@ -632,7 +704,6 @@ async function deltaUpload(tree1, tree2, spinner) {
   return finalDeltas;
 }
 
-
 function hashFileStream(filePath) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash("sha1");
@@ -646,10 +717,6 @@ function hashFileStream(filePath) {
 
 
 
-
-
-
-
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
 
 
@@ -658,19 +725,13 @@ const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
   .usage('Usage: $0 <command> [options]'
   ).command(
-    '$0', 
-    'Shows Version', 
-    () => {}, 
-    (argv) => {
-      console.log('Version 1.0.0')
-    }
-  ).command(
     'init',
-    'Initialize',
+    'Initialize Twig in a working directory',
     (yargs) => {},
     async (argv) => {  
-
-    const spinner = ora('Initializing\n').start();
+  
+try{
+  console.log(chalk.hex('#c6b600')('engine: log - ')+ "initializing")
         fs.mkdir('./.twig', (err) => {
           if (!(err == null)){
           if (!(err.code == 'EEXIST')){
@@ -681,16 +742,12 @@ const cli = yargs(hideBin(process.argv))
         const filePath = './.twig';
         if (existsSync(filePath)){
           console.log()
-          spinner.fail('twig is already initialized here!')
+          console.log(chalk.hex('#c6b600')('client: message - ') + 'twig is already initialized here!')
+          process.exit()
         } 
         else {
-          spinner.stop()
 
-           const repoName = await input({ message: 'what is your repository name?' });
-          
-        spinner.start()
-
-          fs.writeFileSync('./.twig/CONFIG', repoName + '\n' + 'WARNING: DO NOT EDIT THIS ID. DOING SO WILL FATALLY AFFECT REMOTE' + '\n' + randomUUID() + '\nfalse', 'utf8');
+          fs.writeFileSync('./.twig/CONFIG', 'WARNING: DO NOT EDIT THIS ID. DOING SO WILL FATALLY AFFECT REMOTE' + '\n' + randomUUID() + '\nfalse', 'utf8');
           fs.writeFileSync('./.twig/REMOTE', '', 'utf8');
 
         const db = getDb();
@@ -744,30 +801,51 @@ const cli = yargs(hideBin(process.argv))
         newBranch("master", null)
 
         // insertObject(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        spinner.succeed(chalk.green('./.twig') + " initialized")
+        console.log(chalk.hex('#00a030')('client: success - ')+ "twig initialized")
 
         }
+      } catch (err){
+        throw err
+      }
      }
   ).command(
     'commit',
-    'commit changes',
+    'Commit changes',
     (yargs) => {
       return yargs.option('m', {
         alias: 'message',
-        describe: 'the commit message'
+        describe: 'The message for your commit - if not provided, falls back to a prompt'
       })
     },
     async (argv) => {
-      const db = getDb()
+      try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      process.exit()
+    } else {
+      throw err
+    }
+  }
       let msg = argv.m
 
       if (!argv.m){
-           msg = await input({ message: 'what is your commit message?', required:true,  validate: (value) => {
+        try {
+           msg = await input({ message: 'what is your commit message? (CTRL C to cancel)', required:true,  validate: (value) => {
           if (value && value.toString().trim() !== '' && value !== '0' && value !== 'false') {
             return true;
           }
           return 'Please provide a input';
         }});
+      } catch (error){
+        if (error.name == "ExitPromptError"){
+          console.log(chalk.hex('#c6b600')('client: log - ')+ 'Commit cancelled')
+          process.exit(0)
+        } else {
+          throw error
+        }
+      }
       }
       
       console.log(chalk.bold(chalk.blue("committing with message: ")) + msg)
@@ -855,13 +933,13 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     }
   ).command(
     'compare <c1> <c2>', 
-    'compare two commits', 
+    'Compare what changed between two commit ID\'s. Order does not matter', 
     (yargs) => {
       return yargs.positional('c1', {
-        describe: 'commit 1 to compare',
+        describe: 'Commit 1 to compare',
         type: 'string',
       }).positional('c2', {
-        describe: 'commit 2 to compare',
+        describe: 'Commit 2 to compare',
         type: 'string',
       })
     }, 
@@ -885,7 +963,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     }
   ).command(
     'log', 
-    'commit history', 
+    'Display commit history for your current branch', 
     () => {}, 
     (argv) => {
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
@@ -923,10 +1001,10 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     }
   ).command(
     'branch <name>', 
-    'create new branch', 
+    'Create new branch', 
     (yargs) => {
       return yargs.positional('name', {
-        describe: 'name of new branch',
+        describe: 'Name of new branch',
         type: 'string',
       })
     }, 
@@ -941,14 +1019,14 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       }
   ).command(
     'checkout <name>', 
-    'checkout branch', 
+    'Checkout a branch or commit', 
     (yargs) => {
       return yargs.positional('name', {
-        describe: 'name of branch',
+        describe: 'name of branch / commit ID',
         type: 'string',
       }).option('b', {
         alias: 'branch',
-        describe: 'create a new branch if checking out a commit'
+        describe: 'Name option to create a new branch with checked out commit'
       })
     }, 
     (argv) => {
@@ -1072,7 +1150,7 @@ for (const file of files) {
     }
   ).command(
     'branches', 
-    'list all branches and their latest commits', 
+    'List all branches and their latest commits, along with your current branch', 
     (yargs) => {
     }, 
     (argv) => {
@@ -1611,4 +1689,6 @@ if (commitList.length == 0){
 }
     }
   ).help()
+  .showHelpOnFail(true)
+  .demandCommand()
   .parse()
