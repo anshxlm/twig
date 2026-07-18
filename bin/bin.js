@@ -138,7 +138,7 @@ function setParentBranch(hash, branchName){
 
 }
 
-function getBranch(name){
+function getBranch(name, deleted=false){
   try {
     const db = getDb()
   } catch (err){
@@ -148,11 +148,19 @@ function getBranch(name){
       throw err
     }
   }
+  if (!deleted){
   const getParent = db.prepare(`
     SELECT * FROM branches
     WHERE name = ? AND deleted = false;
     `);
   return getParent.get(name)
+  } else {
+     const getParent = db.prepare(`
+    SELECT * FROM branches
+    WHERE name = ?;
+    `);
+  return getParent.get(name)
+  }
 
 }
 
@@ -215,6 +223,26 @@ function deleteBranch(name){
     `);
 
   return deleteBranch.run(name)
+
+}
+
+function undoDeleteBranch(name){
+  try {
+    const db = getDb()
+  } catch (err){
+    if (err.message = "Cannot open database because the directory does not exist"){
+      logger.error("engine", "twig is not initialized here")
+    } else {
+      throw err
+    }
+  }
+  const undoDeleteBranch = db.prepare(`
+    UPDATE branches
+    SET deleted = false
+    WHERE name = ?;
+    `);
+
+  return undoDeleteBranch.run(name)
 
 }
 
@@ -743,6 +771,38 @@ function hashFileStream(filePath) {
 }
 
 
+function uncommittedChanges(treeIn){
+  logger.log("engine", "checking for uncommitted changes")
+  const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
+      let curr_branch_commit
+      if (getBranch(currHead) !== undefined){
+      curr_branch_commit = getBranch(currHead).commit_hash
+      } else {
+        curr_branch_commit = currHead
+      }
+      const cur_treeIn = (JSON.parse(getObject(curr_branch_commit).data).tree)
+
+      const curr_files = getTreeFiles(cur_treeIn)
+
+      const currRead = getDirectoryFiles('./')
+      const remote_comparison_files = []
+      const local_comparison_files = []
+      for (const file of curr_files){
+        remote_comparison_files.push([path.join(file[0].slice(1, file[0].length), file[1]), file[2]])
+      }
+
+      for (const file of currRead){
+        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
+      }
+
+      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
+        return true
+      } else {
+        return false
+      }
+}
+
+
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
 
@@ -1042,20 +1102,33 @@ spinner.succeed(logger.returnSuccess(`client`, `processed ${files.length} files 
     } else {
       
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
+      let undoDeletion = false;
 try {
     newBranch(argv.name, getBranch(parentBranch).commit_hash)
 } catch (error){
   if (error.message == "UNIQUE constraint failed: branches.name"){
-    logger.error('engine', "branch already exists")
-    process.exit()
+    if (getBranch(argv.name, true).deleted){
+      undoDeletion = true
+    } else {
+      logger.error('engine', "branch already exists")
+      process.exit()
+    }
   } else throw error
 }
+    if (undoDeletion){
+      undoDeleteBranch(argv.name)
+      setParentBranch(getBranch(parentBranch).commit_hash, argv.name)
+    }
 
     logger.success("client", `new branch ${chalk.magenta.bold(argv.name)} created`)
     const checkout = await confirm({message:`would you like to checkout ${chalk.magenta.bold(argv.name)}?`, default:false})
     if (checkout){
+      if (!uncommittedChanges()){
       fs.writeFileSync('./.twig/HEAD',argv.name, 'utf8');
       logger.success("client", "Current HEAD: Branch " + chalk.magenta.bold(argv.name))
+      } else {
+         logger.error("engine", "failed to checkout new branch because there are uncomitted changes in your current working directory.")
+      }
     }
 
       }
@@ -1130,65 +1203,17 @@ try {
         logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
         process.exit()
       } else {
-
-            const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
-      let curr_branch_commit
-      if (getBranch(currHead) !== undefined){
-      curr_branch_commit = getBranch(currHead).commit_hash
-      } else {
-        curr_branch_commit = currHead
-      }
-      const cur_treeIn = (JSON.parse(getObject(curr_branch_commit).data).tree)
-      const curr_files = getTreeFiles(cur_treeIn)
-      const currRead = getDirectoryFiles('./')
-      const remote_comparison_files = []
-      const local_comparison_files = []
-      for (const file of curr_files){
-        remote_comparison_files.push([path.join(file[0].slice(1, file[0].length), file[1]), file[2]])
-      }
-
-      for (const file of currRead){
-        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
-      }
-
-      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
-    
+      
+      if (uncommittedChanges()){
         logger.warning("client", ('cannot change branches with uncommitted changes.'))
       } else {
     
 
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
 
-      const folderPath = './';
-const initalfiles = fs.readdirSync(folderPath)
-const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
-
-for (const file of files) {
-  const curPath = path.join(folderPath, file);
-  try {
-    fs.rmSync(curPath, { recursive: true, force: true });
-  } catch (err) {
-    if (err.code === 'EPERM' || err.code === 'EBUSY') {
-      if (fs.statSync(curPath).isFile()) {
-        fs.writeFileSync(curPath, '');
-      }
-    } {
-      console.error(err.message);
-    }
-  }
-}
       const branch_commit = getBranch(argv.name).commit_hash
       const treeIn = (JSON.parse(getObject(branch_commit).data).tree)
-      const filesToMake = getTreeFiles(treeIn)
-
-      for (const file of filesToMake){
-      const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
-      fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
-        console.log(err)
-      });
-      fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
-
-      }
+      loadCommitToDirectory(treeIn)
 
       logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
     }
