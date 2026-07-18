@@ -18,7 +18,7 @@ import os from "os";
 
 import { Logger } from '../lib/logger.js';
 import * as database from '../lib/database.js'
-import { hash, hashFileStream } from '../lib/engine/crypto.js'
+import * as crypto from '../lib/engine/crypto.js'
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -87,7 +87,7 @@ function filesIntoDB(where, blobHashes) {
 
     entries.sort((a,b)=>a.name.localeCompare(b.name));
 
-    const treeHash = hash(JSON.stringify(entries));
+    const treeHash = crypto.hash(JSON.stringify(entries));
 
     database.insertObject(treeHash, "tree", JSON.stringify(entries))
 
@@ -362,7 +362,7 @@ function writeMergeTree(node) {
         });
     }
 
-    const treeHash = hash(JSON.stringify(entries));
+    const treeHash = crypto.hash(JSON.stringify(entries));
 try {
 
     database.insertObject(
@@ -548,7 +548,7 @@ function uncommittedChanges(treeIn){
       }
 
       for (const file of currRead){
-        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
+        local_comparison_files.push([file, crypto.hash(fs.readFileSync(file, 'utf8'))])
       }
 
       if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
@@ -697,7 +697,7 @@ for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
   await Promise.all(
     chunk.map(async (file) => {
 
-      const blobHash = await hashFileStream(file);
+      const blobHash = await crypto.hashFileStream(file);
 
       blobHashes.set(
         path.resolve(file),
@@ -735,16 +735,16 @@ console.timeEnd(logger.returnLog("engine", "done. commit time"));
         };
 
     database.insertObject(
-        hash(JSON.stringify(commitinfo)),
+        crypto.hash(JSON.stringify(commitinfo)),
         "commit",
         JSON.stringify(commitinfo)
     );
 
             
       if (database.getBranch(parentBranch) == undefined){
-          fs.writeFileSync('./.twig/HEAD', hash(JSON.stringify(commitinfo)), 'utf8');
+          fs.writeFileSync('./.twig/HEAD', crypto.hash(JSON.stringify(commitinfo)), 'utf8');
       } else {
-        database.setParentBranch(hash(JSON.stringify(commitinfo)), parentBranch)
+        database.setParentBranch(crypto.hash(JSON.stringify(commitinfo)), parentBranch)
       }
 
 });
@@ -925,7 +925,7 @@ try {
       }
 
       for (const file of currRead){
-        local_comparison_files.push([file, hash(fs.readFileSync(file, 'utf8'))])
+        local_comparison_files.push([file, crypto.hash(fs.readFileSync(file, 'utf8'))])
       }
 
       if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
@@ -1361,8 +1361,8 @@ for (const [filePath, hash] of merged) {
 
     loadCommitToDirectory(rootHash)
 
-        database.insertObject(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        database.setParentBranch(hash(JSON.stringify(commitinfo)), currBranch)
+        database.insertObject(crypto.hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
+        database.setParentBranch(crypto.hash(JSON.stringify(commitinfo)), currBranch)
         const BranchDeletion = await confirm({ message: `Would you like to delete branch ${chalk.magenta.bold(argv.name)} after merging?` });
         if (BranchDeletion){
 
