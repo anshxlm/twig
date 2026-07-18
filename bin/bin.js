@@ -16,9 +16,9 @@ import { Octokit } from "@octokit/core";
 import os from "os";
 /* -------------------------------------------------------    CUSTOM IMPORTS   --------------------------------------------------------------------*/
 
-import { Logger } from '../lib/logger.js';
-import * as database from '../lib/database.js'
-import * as crypto from '../lib/crypto.js'
+import { Logger } from '../lib/process/logger.js';
+import * as database from '../lib/process/database.js'
+import * as crypto from '../lib/process/crypto.js'
 import initialize from '../lib/engine/initialize.js';
 import commit from '../lib/engine/commit.js';
 import getDirectoryFiles from '../lib/util/getDirectoryFiles.js';
