@@ -16,12 +16,30 @@ import { exec } from 'child_process';
 import { Octokit } from "@octokit/core";
 import os from "os";
 
-/* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
+/* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
 process.env.UV_THREADPOOL_SIZE = String(Math.max(16, os.cpus().length));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+class Logger {
+
+success(source, message){console.log(chalk.hex('#00bf39')((`${source} - success: ${chalk.whiteBright(message)}`)))}
+log(source, message){console.log(chalk.hex('#a3a3a3')(`${source} - log: ${chalk.whiteBright(message)}`))}
+warning(source, message){console.log(chalk.hex('#e09d00')(`${source} - warning: ${chalk.whiteBright(message)}`))}
+error(source, message){console.log(chalk.hex('#c60000')(`${source} - error: ${chalk.whiteBright(message)}`))}
+
+returnSuccess(source, message){return (chalk.hex('#00bf39')((`${source} - success: ${chalk.whiteBright(message)}`)))}
+returnLog(source, message){return (chalk.hex('#a3a3a3')(`${source} - log: ${chalk.whiteBright(message)}`))}
+returnWarning(source, message){console.log(chalk.hex('#e09d00')(`${source} - warning: ${chalk.whiteBright(message)}`))}
+returnError(source, message){return (chalk.hex('#c60000')(`${source} - error: ${chalk.whiteBright(message)}`))}
+
+output(message){console.log(chalk.hex('#006ece')(`output: ${chalk.whiteBright(message)}`))}}
+
+const logger = new Logger()
+
+
 let db;
 const paths = envPaths('twigvcs', {suffix:''});
 export function getDb() {
@@ -54,7 +72,7 @@ function insertObject(hash,type,data){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -72,7 +90,7 @@ function getObject(hash){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -89,7 +107,7 @@ function getObjectLike(hash){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -106,7 +124,7 @@ function setParentBranch(hash, branchName){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -125,14 +143,14 @@ function getBranch(name){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
   }
   const getParent = db.prepare(`
     SELECT * FROM branches
-    WHERE name = ?
+    WHERE name = ? AND deleted = false;
     `);
   return getParent.get(name)
 
@@ -143,7 +161,7 @@ function newBranch(name, commit_hash){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -160,13 +178,14 @@ function getAllBranches(){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
   }
   const getBranches = db.prepare(`
         SELECT * FROM branches
+        WHERE deleted = false;
         `)
   return getBranches.all()
 
@@ -177,15 +196,23 @@ function deleteBranch(name){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
   }
+  /*
   const deleteBranch = db.prepare(`
             DELETE FROM branches
             WHERE name = ?
             `)
+  */
+
+  const deleteBranch = db.prepare(`
+    UPDATE branches
+    SET deleted = true
+    WHERE name = ?;
+    `);
 
   return deleteBranch.run(name)
 
@@ -196,7 +223,7 @@ function updateCommitSha(commit, sha){
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
     } else {
       throw err
     }
@@ -423,15 +450,15 @@ const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
 for (const file of allFiles) {
 
     if (!(file in tree1)) {
-        console.log("ADDED:", file);
+        logger.output("ADDED: " + file);
     }
 
     else if (!(file in tree2)) {
-        console.log("DELETED:", file);
+        logger.output("DELETED: " + file);
     }
 
     else if (tree1[file] !== tree2[file]) {
-        console.log("MODIFIED:", file);
+        logger.output("MODIFIED: " + file);
     }
 }
 }
@@ -582,7 +609,7 @@ for (const file of files) {
       for (const file of filesToMake){
       const content = fs.readFileSync('./.twig/files/' + file[2], 'utf8');
       fs.mkdirSync('./' + file[0], { recursive: true }, (err) => {
-        console.log(err)
+        logger.error("engine", err)
       });
       fs.writeFileSync('./' + file[0] + file[1], content, 'utf8');
 
@@ -723,6 +750,10 @@ function hashFileStream(filePath) {
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
+  .parserConfiguration({
+    'short-option-groups': false,
+    'camel-case-expansion': false, 
+  })
   .usage('Usage: $0 <command> [options]'
   ).command(
     'init',
@@ -731,7 +762,6 @@ const cli = yargs(hideBin(process.argv))
     async (argv) => {  
   
 try{
-  console.log(chalk.hex('#c6b600')('engine: log - ')+ "initializing")
         fs.mkdir('./.twig', (err) => {
           if (!(err == null)){
           if (!(err.code == 'EEXIST')){
@@ -741,11 +771,11 @@ try{
         });
         const filePath = './.twig';
         if (existsSync(filePath)){
-          console.log()
-          console.log(chalk.hex('#c6b600')('client: message - ') + 'twig is already initialized here!')
+          logger.log("client", "twig is already initialized here!")
           process.exit()
         } 
         else {
+            logger.log("engine", "initializing")
 
           fs.writeFileSync('./.twig/CONFIG', 'WARNING: DO NOT EDIT THIS ID. DOING SO WILL FATALLY AFFECT REMOTE' + '\n' + randomUUID() + '\nfalse', 'utf8');
           fs.writeFileSync('./.twig/REMOTE', '', 'utf8');
@@ -763,45 +793,20 @@ try{
           db.exec(`
   CREATE TABLE IF NOT EXISTS branches (
     name TEXT PRIMARY KEY,
-    commit_hash TEXT NULL
+    commit_hash TEXT NULL,
+    deleted BOOLEAN DEFAULT false
 );
 `);
 
-        //const initTree = getDirectoryFiles('./')
-        
         fs.mkdir('./.twig/files', (err) => {
            
         });
-
-        /*
-        for (const file of initTree){
-
-        const content = fs.readFileSync(file, 'utf8');
-        fs.writeFileSync('./.twig/files/' + hash(content), content, 'utf8');
-        }
-        filesIntoDB('./')
-
-        const commitRoot = filesIntoDB('./')
-
-
-        const commitinfo = {
-        tree: commitRoot,
-        message: "Initial Commit",
-        parent:null,
-        when: Date.now()
-        };
-
-        */ 
-
         
-
         fs.writeFileSync('./.twig/HEAD', "master", 'utf8');
 
-        //newBranch("master", hash(JSON.stringify(commitinfo)))
         newBranch("master", null)
 
-        // insertObject(hash(JSON.stringify(commitinfo)), "commit", JSON.stringify(commitinfo))
-        console.log(chalk.hex('#00a030')('client: success - ')+ "twig initialized")
+        logger.success("client", "twig initialized")
 
         }
       } catch (err){
@@ -822,7 +827,7 @@ try{
     const db = getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
-      console.log(chalk.hex('#c60000')('engine: fatal - ')+'twig is not initialized here')
+      logger.error("engine", "twig is not initialized here")
       process.exit()
     } else {
       throw err
@@ -840,7 +845,7 @@ try{
         }});
       } catch (error){
         if (error.name == "ExitPromptError"){
-          console.log(chalk.hex('#c6b600')('client: log - ')+ 'Commit cancelled')
+          logger.log("client", "commit cancelled")
           process.exit(0)
         } else {
           throw error
@@ -848,7 +853,7 @@ try{
       }
       }
       
-      console.log(chalk.bold(chalk.blue("committing with message: ")) + msg)
+      logger.log("client", 'committing with message: '+ chalk.bold(msg))
 
       const spinner = ora('Generating tree...').start()
 
@@ -856,40 +861,43 @@ try{
 
 spinner.text = "Hashing files...";
 
-console.time("Hashing");
+console.time(logger.returnLog("engine", "done. commit time"));
 
 const initialFiles = getDirectoryFiles("./");
-
-console.timeEnd("Hashing");
 
 const files = initialFiles.filter(file =>
     !file.includes("node_modules") &&
     !file.includes(".twig")
 );
 
-console.time("Tree")
-for (let i = 0; i < files.length; i++) {
-  const file = files[i];
+const CONCURRENCY_LIMIT = 50;
 
-  spinner.text = `Hashing ${i + 1}/${files.length}`;
+for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
 
-  const blobHash = await hashFileStream(file);
+  const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
+  
 
-  blobHashes.set(
-    path.resolve(file),
-    blobHash
+   spinner.text = logger.returnLog("engine", `hashing ${Math.min(i + CONCURRENCY_LIMIT, files.length)}/${files.length}`);
+
+  await Promise.all(
+    chunk.map(async (file) => {
+
+      const blobHash = await hashFileStream(file);
+
+      blobHashes.set(
+        path.resolve(file),
+        blobHash
+      );
+
+      const blobPath = `./.twig/files/${blobHash}`;
+
+      if (!fs.existsSync(blobPath)) {
+        await fs.promises.copyFile(file, blobPath);
+      }
+    })
   );
-
-  const blobPath = `./.twig/files/${blobHash}`;
-
-
-  if (!fs.existsSync(blobPath)) {
-    await fs.promises.copyFile(file, blobPath);
-  }
 }
-console.timeEnd("Tree")
-
-        spinner.text = 'Making tree...'
+console.timeEnd(logger.returnLog("engine", "done. commit time"));
           
         const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
 
@@ -928,7 +936,7 @@ console.timeEnd("Tree")
 
 transaction();
 
-spinner.succeed(`Processed ${files.length} files successfully.`)
+spinner.succeed(logger.returnSuccess(`client`, `processed ${files.length} files successfully.`))
 
     }
   ).command(
@@ -984,14 +992,13 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
 
     hash = commit.parent;
 } 
-  console.log()
 
-  for (const [index, msg] of historyArr.toReversed().entries()){
+  for (const [index, msg] of historyArr.entries()){
     if (index == 0){
-      console.log(chalk.bold(msg.message) + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
+      logger.output(msg.message + chalk.hex('#ff7b00').bold(' (latest) ') + chalk.yellow(msg.hash.slice(0, 8)))
     }
     else {
-    console.log(msg.message  + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
+    logger.output(msg.message  + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
     }
   }
 
@@ -1000,23 +1007,59 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
 
     }
   ).command(
-    'branch <name>', 
-    'Create new branch', 
+    'branch <name> [options]', 
+    'Create or delete a branch', 
     (yargs) => {
       return yargs.positional('name', {
-        describe: 'Name of new branch',
+        describe: 'name of branch',
         type: 'string',
+        demandOption:false
+      }).option('rm', {
+        alias: 'remove',
+        describe: `delete the inputted branch. add ${chalk.bold('all')} to remove all branches except master.`
       })
     }, 
-    (argv) => {
+    async (argv) => {
+    
+    if (argv.rm){
+      if (argv.rm == "all"){
+        const branches = getAllBranches()
+
+        for (const branch of branches){
+          if (branch.name !== "master"){
+            deleteBranch(branch.name)
+          }
+        }
+
+      } else {
+      const confirmation = await confirm({message:`are you sure you want to delete branch ${chalk.magenta.bold(argv.name)}?`})
+      if (confirmation){
+        deleteBranch(argv.name)
+        logger.success('client', "branch deleted")
+      }
+    }
+
+    } else {
       
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
-
+try {
     newBranch(argv.name, getBranch(parentBranch).commit_hash)
+} catch (error){
+  if (error.message == "UNIQUE constraint failed: branches.name"){
+    logger.error('engine', "branch already exists")
+    process.exit()
+  } else throw error
+}
 
-    console.log("New branch " + chalk.magenta.bold(argv.name) + " created")
+    logger.success("client", `new branch ${chalk.magenta.bold(argv.name)} created`)
+    const checkout = await confirm({message:`would you like to checkout ${chalk.magenta.bold(argv.name)}?`, default:false})
+    if (checkout){
+      fs.writeFileSync('./.twig/HEAD',argv.name, 'utf8');
+      logger.success("client", "Current HEAD: Branch " + chalk.magenta.bold(argv.name))
+    }
 
       }
+    }
   ).command(
     'checkout <name>', 
     'Checkout a branch or commit', 
@@ -1034,9 +1077,8 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
     if (getBranch(argv.name) == undefined){
       const commit = getObjectLike(`${argv.name}%`)
       if (commit == undefined){
-        console.log(chalk.redBright('Branch/Commit does not exist'))
+        logger.error("client", ('Branch/Commit does not exist'))
       } else {
-
       const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
       let curr_branch_commit
       if (getBranch(currHead) !== undefined){
@@ -1061,7 +1103,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
         //console.log('LOCAL: ', local_comparison_files.sort())
         //console.log('REMOTE: ', remote_comparison_files.sort())
-        console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
+        logger.warning("client", ('cannot change branches with uncommitted changes.'))
       } else {
 
         const treeIn = (JSON.parse(getObjectLike(`${argv.name}%`).data).tree)
@@ -1070,7 +1112,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       if (argv.b){
         newBranch(argv.b, commit.hash)
         console.log('Branch ' + chalk.magenta.bold(argv.b) + ' created')
-        console.log('Current HEAD: Branch ' + chalk.magenta.bold(argv.b))
+        logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.b))
         fs.writeFileSync('./.twig/HEAD', argv.b, 'utf8');
 
       } else {
@@ -1082,6 +1124,12 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
       }
 
     } else {
+
+      if (getBranch(argv.name).commit_hash == null){
+        fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
+        logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
+        process.exit()
+      } else {
 
             const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
       let curr_branch_commit
@@ -1105,7 +1153,7 @@ spinner.succeed(`Processed ${files.length} files successfully.`)
 
       if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
     
-        console.log(chalk.yellowBright('Cannot change branches with uncommitted changes.'))
+        logger.warning("client", ('cannot change branches with uncommitted changes.'))
       } else {
     
 
@@ -1142,11 +1190,12 @@ for (const file of files) {
 
       }
 
-      console.log("Current HEAD: Branch " + chalk.magenta.bold(argv.name))
+      logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
     }
       
 
       }
+    }
     }
   ).command(
     'branches', 
@@ -1158,7 +1207,7 @@ for (const file of files) {
       const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       const branches = getAllBranches()
       for (const branch of branches){
-        console.log(branch.name == currentBranch ? 'Branch ' + chalk.magenta.bold(branch.name + chalk.hex("#ff7b00")(" (HEAD)")) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)': 'Branch ' + chalk.magenta.bold(branch.name) + ' - ' + branch.commit_hash.slice(0, 8) + ' (latest commit)')
+        logger.output(branch.name == currentBranch ? 'Branch ' + chalk.magenta.bold(branch.name + chalk.hex("#ff7b00")(" (HEAD)")) + ' - ' + (branch.commit_hash == null ? '(no latest commit)' :branch.commit_hash.slice(0, 8) + ' (latest commit)'): 'Branch ' + chalk.magenta.bold(branch.name) + ' - ' + (branch.commit_hash == null ? '(no latest commit)' :branch.commit_hash.slice(0, 8) + ' (latest commit)'))
       }
     }
 
@@ -1338,19 +1387,22 @@ app.listen(PORT, () => {
 
       }
   ).command(
-    'merge <name>', 
+    'merge <name> [options]', 
     'merge two branches', 
     (yargs) => {
       return yargs.positional('name', {
         describe: 'branch to merge into current branch',
         type: 'string',
+      }).option('force', {
+        alias: 'force',
+        describe: 'force a merge if unrelatedHistories error'
       })
     }, 
     async (argv) => {
 
     if (getBranch(argv.name) == undefined){
 
-      console.log(chalk.redBright('Branch provided does not exist'))
+      logger.error("client", ('Branch provided does not exist'))
 
     } else {
 
@@ -1359,6 +1411,8 @@ app.listen(PORT, () => {
       const mergeBranchLatestCommit = getBranch(argv.name).commit_hash
 
       if (ancestry(currBranchLatestCommit, mergeBranchLatestCommit)){
+
+            logger.log("engine", "merging via latest commit")
 
             const folderPath = './';
             const initalfiles = fs.readdirSync(folderPath)
@@ -1396,12 +1450,23 @@ app.listen(PORT, () => {
           deleteBranch(argv.name)
 
         }
-            console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
+            logger.success("client", `Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
 
             // ------------------------------------------------------------------------------------------------------------------------------------------------------
     } else {
+            logger.log("engine", "using common base merge")
             const base = findCommonBase(currBranchLatestCommit, mergeBranchLatestCommit)
-            const baseTree = getTreeFilesAndHash((JSON.parse(getObject(base).data).tree))
+            let baseTree;
+            if (base == null && !argv.force){
+              logger.error('engine', "refusing to merge unrelated histories. use --force")
+              process.exit()
+            } else if (base == null && argv.force){
+              logger.warning("client", "using --force to merge unrelated histories.")
+              baseTree = {}
+            } else {
+              baseTree = getTreeFilesAndHash((JSON.parse(getObject(base).data).tree))
+              logger.log("engine", "base commit " + base + " found")
+            }
             const currBranchTree = getTreeFilesAndHash((JSON.parse(getObject(currBranchLatestCommit).data).tree))
             const mergeBranchTree = getTreeFilesAndHash(JSON.parse(getObject(mergeBranchLatestCommit).data).tree) 
             const baseMap = new Map(Object.entries(baseTree));
@@ -1423,7 +1488,7 @@ app.listen(PORT, () => {
             const currHash = currMap.get(path);
             const mergeHash = mergeMap.get(path);
 
-            console.log(path, (baseHash == currHash && baseHash == mergeHash ? "Unchanged":(baseHash != currHash ? (baseHash != mergeHash ? "Changes in both" : "Current branch ahead") : "Merge branch ahead")));
+            baseHash == currHash && baseHash == mergeHash ? "":(baseHash != currHash ? (baseHash != mergeHash ? logger.output(path + " has changes in both branches") : logger.output(path + " has changes in current branch")) : logger.output(path + " has changes in merge branch"))
     
 
             const action = classify(baseHash,currHash,mergeHash);
@@ -1459,8 +1524,7 @@ app.listen(PORT, () => {
           if (conflicts.length > 0){
 
             for (const conflict of conflicts){
-
-              console.log('\nMERGE CONFLICT IN: ' + conflict[0])
+              logger.warning("client", "MERGE CONFLICT IN: " + conflict[0])
               const keep = await input({ message: `Which branch changes would you like to keep? (${currBranch}, ${argv.name})`});
               if (keep == currBranch){
                 merged.set(conflict[0], conflict[1])
@@ -1525,7 +1589,7 @@ for (const [filePath, hash] of merged) {
           deleteBranch(argv.name)
 
         }
-        console.log(`Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
+        logger.success("client", `Sucessfully merged ${chalk.magenta.bold(argv.name)} into ${chalk.magenta.bold(currBranch)}`)
       }
 
     }
