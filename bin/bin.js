@@ -20,6 +20,9 @@ import { Logger } from '../lib/logger.js';
 import * as database from '../lib/database.js'
 import * as crypto from '../lib/crypto.js'
 import initialize from '../lib/engine/initialize.js';
+import commit from '../lib/engine/commit.js';
+import getDirectoryFiles from '../lib/util/getDirectoryFiles.js';
+import filesIntoDB from '../lib/util/filesIntoDb.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -42,84 +45,6 @@ if (error.code == "ENOENT")
 }
 
 /* ----------------------------------------------------------     ENGINE     --------------------------------------------------------------*/
-
-
-// maps the file system into trees and then inserts them into database
-function filesIntoDB(where, blobHashes) {
-
-    const entries = [];
-
-    const files = fs.readdirSync(where, {
-        withFileTypes: true
-    });
-
-    for (const file of files) {
-
-        if (file.name === ".twig") continue;
-        if (file.name === "node_modules") continue;
-        if (file.name === ".next") continue;
-        if (file.name === "dist") continue;
-        if (file.name === "build") continue;
-        if (file.name === ".git") continue;
-
-        const fullPath = path.join(where, file.name);
-
-        if (file.isDirectory()) {
-
-            const treeHash = filesIntoDB(fullPath, blobHashes);
-
-            entries.push({
-                name: file.name,
-                type: "tree",
-                hash: treeHash
-            });
-
-        } else {
-
-            entries.push({
-                name: file.name,
-                type: "blob",
-                hash: blobHashes.get(path.resolve(fullPath))
-            });
-
-        }
-
-    }
-
-    entries.sort((a,b)=>a.name.localeCompare(b.name));
-
-    const treeHash = crypto.hash(JSON.stringify(entries));
-
-    database.insertObject(treeHash, "tree", JSON.stringify(entries))
-
-    return treeHash;
-}
-
-// returns all files in the current workspace
-function getDirectoryFiles(dir, files = []) {
-
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-
-        if (entry.name === ".twig") continue;
-        if (entry.name === "node_modules") continue;
-        if (entry.name === ".next") continue;
-        if (entry.name === "dist") continue;
-        if (entry.name === "build") continue;
-        if (entry.name === ".git") continue;
-
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-            getDirectoryFiles(fullPath, files);
-        } else {
-            files.push(fullPath);
-        }
-    }
-
-    return files;
-}
 
 // console logs the tree layout of a tree (deprecated)
 function consoleFileTree(treeHash, indent = "") {
@@ -575,9 +500,7 @@ const cli = yargs(hideBin(process.argv))
     'Initialize Twig in a working directory',
     (yargs) => {},
     async (argv) => {  
-  
       await initialize()
-
      }
   ).command(
     'commit',
@@ -589,121 +512,8 @@ const cli = yargs(hideBin(process.argv))
       })
     },
     async (argv) => {
-      let db
-      try {
-    db = database.getDb()
-  } catch (err){
-    if (err.message = "Cannot open database because the directory does not exist"){
-      logger.error("engine", "twig is not initialized here")
-      process.exit()
-    } else {
-      throw err
-    }
-  }
-      let msg = argv.m
 
-      if (!argv.m){
-        try {
-           msg = await input({ message: 'what is your commit message? (CTRL C to cancel)', required:true,  validate: (value) => {
-          if (value && value.toString().trim() !== '' && value !== '0' && value !== 'false') {
-            return true;
-          }
-          return 'Please provide a input';
-        }});
-      } catch (error){
-        if (error.name == "ExitPromptError"){
-          logger.log("client", "commit cancelled")
-          process.exit(0)
-        } else {
-          throw error
-        }
-      }
-      }
-      
-      logger.log("client", 'committing with message: '+ chalk.bold(msg))
-
-      const spinner = ora('Generating tree...').start()
-
-      const blobHashes = new Map();
-
-spinner.text = "Hashing files...";
-
-console.time(logger.returnLog("engine", "done. commit time"));
-
-const initialFiles = getDirectoryFiles("./");
-
-const files = initialFiles.filter(file =>
-    !file.includes("node_modules") &&
-    !file.includes(".twig")
-);
-
-const CONCURRENCY_LIMIT = 50;
-
-for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
-
-  const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
-  
-
-   spinner.text = logger.returnLog("engine", `hashing ${Math.min(i + CONCURRENCY_LIMIT, files.length)}/${files.length}`);
-
-  await Promise.all(
-    chunk.map(async (file) => {
-
-      const blobHash = await crypto.hashFileStream(file);
-
-      blobHashes.set(
-        path.resolve(file),
-        blobHash
-      );
-
-      const blobPath = `./.twig/files/${blobHash}`;
-
-      if (!fs.existsSync(blobPath)) {
-        await fs.promises.copyFile(file, blobPath);
-      }
-    })
-  );
-}
-console.timeEnd(logger.returnLog("engine", "done. commit time"));
-          
-        const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
-
-          let parent
-          if (database.getBranch(parentBranch) == undefined){
-            parent = parentBranch
-          } else {
-            parent = database.getBranch(parentBranch).commit_hash
-          }
-
-        const transaction = db.transaction(() => {
-
-    const commitRoot = filesIntoDB("./", blobHashes);
-
-          const commitinfo = {
-        tree: commitRoot,
-        message: msg,
-        parent:parent,
-        when: Date.now()
-        };
-
-    database.insertObject(
-        crypto.hash(JSON.stringify(commitinfo)),
-        "commit",
-        JSON.stringify(commitinfo)
-    );
-
-            
-      if (database.getBranch(parentBranch) == undefined){
-          fs.writeFileSync('./.twig/HEAD', crypto.hash(JSON.stringify(commitinfo)), 'utf8');
-      } else {
-        database.setParentBranch(crypto.hash(JSON.stringify(commitinfo)), parentBranch)
-      }
-
-});
-
-transaction();
-
-spinner.succeed(logger.returnSuccess(`client`, `processed ${files.length} files successfully.`))
+      await commit(argv)
 
     }
   ).command(
