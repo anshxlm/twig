@@ -18,7 +18,7 @@ import os from "os";
 
 import { Logger } from '../lib/logger.js';
 import * as database from '../lib/database.js'
-import * as crypto from '../lib/engine/crypto.js'
+import * as crypto from '../lib/crypto.js'
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
