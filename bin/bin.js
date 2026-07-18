@@ -7,7 +7,7 @@ import ora from 'ora';
 import envPaths from 'env-paths';
 import { input, password, confirm } from '@inquirer/prompts';
 import fs, { existsSync, read } from 'node:fs';
-import crypto, { randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import path from "path";
 import { fileURLToPath } from 'url';
 import { get } from 'node:https';
@@ -18,17 +18,15 @@ import os from "os";
 
 import { Logger } from '../lib/logger.js';
 import * as database from '../lib/database.js'
+import { hash, hashFileStream } from '../lib/engine/crypto.js'
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
 process.env.UV_THREADPOOL_SIZE = String(Math.max(16, os.cpus().length));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const logger = new Logger()
-
 const paths = envPaths('twigvcs', {suffix:''});
-
 async function promptToken(){
     const token = await password({message:'paste your token'})
     fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN'), token);
@@ -120,11 +118,6 @@ function getDirectoryFiles(dir, files = []) {
     }
 
     return files;
-}
-
-// SHA-1 hash of data
-function hash(data) {
-    return crypto.createHash("sha1").update(data).digest("hex");
 }
 
 // console logs the tree layout of a tree (deprecated)
@@ -533,17 +526,6 @@ async function deltaUpload(tree1, tree2, spinner) {
   return finalDeltas;
 }
 
-function hashFileStream(filePath) {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash("sha1");
-    const stream = fs.createReadStream(filePath);
-    
-    stream.on("data", (chunk) => hash.update(chunk));
-    stream.on("end", () => resolve(hash.digest("hex")));
-    stream.on("error", (err) => reject(err));
-  });
-}
-
 
 function uncommittedChanges(treeIn){
   logger.log("engine", "checking for uncommitted changes")
@@ -575,8 +557,6 @@ function uncommittedChanges(treeIn){
         return false
       }
 }
-
-
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
 
@@ -657,8 +637,9 @@ try{
       })
     },
     async (argv) => {
+      let db
       try {
-    const db = database.getDb()
+    db = database.getDb()
   } catch (err){
     if (err.message = "Cannot open database because the directory does not exist"){
       logger.error("engine", "twig is not initialized here")
