@@ -3,3 +3,4 @@ testFolder/
 .twig/
 octokit.js
 pull.js
+index.js
