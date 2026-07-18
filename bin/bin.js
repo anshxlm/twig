@@ -19,6 +19,7 @@ import os from "os";
 import { Logger } from '../lib/logger.js';
 import * as database from '../lib/database.js'
 import * as crypto from '../lib/crypto.js'
+import initialize from '../lib/engine/initialize.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -575,57 +576,8 @@ const cli = yargs(hideBin(process.argv))
     (yargs) => {},
     async (argv) => {  
   
-try{
-        fs.mkdir('./.twig', (err) => {
-          if (!(err == null)){
-          if (!(err.code == 'EEXIST')){
-            console.log(err)
-          }
-        }
-        });
-        const filePath = './.twig';
-        if (existsSync(filePath)){
-          logger.warning("client", "twig is already initialized here!")
-          process.exit()
-        } 
-        else {
-            logger.log("engine", "initializing")
+      await initialize()
 
-          fs.writeFileSync('./.twig/CONFIG', 'WARNING: DO NOT EDIT THIS ID. DOING SO WILL FATALLY AFFECT REMOTE' + '\n' + randomUUID() + '\nfalse', 'utf8');
-          fs.writeFileSync('./.twig/REMOTE', '', 'utf8');
-
-        const db = database.getDb();
-        db.exec(`
-  CREATE TABLE IF NOT EXISTS objects (
-    hash TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    data TEXT NOT NULL,
-    commit_sha TEXT NULL
-);
-`);
-
-          db.exec(`
-  CREATE TABLE IF NOT EXISTS branches (
-    name TEXT PRIMARY KEY,
-    commit_hash TEXT NULL,
-    deleted BOOLEAN DEFAULT false
-);
-`);
-
-        fs.mkdir('./.twig/files', (err) => {
-           
-        });
-        
-        fs.writeFileSync('./.twig/HEAD', "master", 'utf8');
-
-        database.newBranch("master", null)
-
-        logger.success("client", "twig initialized")
-
-        }
-      } catch (err){
-        throw err
-      }
      }
   ).command(
     'commit',
@@ -991,7 +943,7 @@ try {
       }
     }
 
-  ).command(
+  ).command( 
     'login', 
     'login to twig-cli', 
     (yargs) => {}, 
