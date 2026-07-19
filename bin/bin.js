@@ -28,6 +28,7 @@ import compare from '../lib/engine/compare.js';
 import comparison from '../lib/util/comparison.js';
 import twigLog from '../lib/engine/log.js';
 import branch from '../lib/engine/branch.js';
+import uncommittedChanges from '../lib/util/uncommittedChanges.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -131,22 +132,6 @@ if (!hasPushed){
 
   return historyArr.toReversed()
 
-}
-
-// returns ONLY files of a tree, along with file name and hash ***********************************************************
-function getTreeFiles(branch, currPath="/", allFiles = []) {
-    const treeIn = JSON.parse(database.getObject(branch).data);
-
-    for (const subtree of treeIn) {
-
-        if (subtree.type == "tree") {
-            getTreeFiles(subtree.hash, currPath + subtree.name + '/', allFiles);
-        } else {
-          allFiles.push([currPath, subtree.name, subtree.hash]);
-        }
-    }
-
-    return allFiles
 }
 
 // checks if a commit is a descendant of another.
@@ -415,38 +400,6 @@ async function deltaUpload(tree1, tree2, spinner) {
   }
 
   return finalDeltas;
-}
-
-
-function uncommittedChanges(treeIn){
-  logger.log("engine", "checking for uncommitted changes")
-  const currHead = fs.readFileSync('./.twig/HEAD', 'utf8');
-      let curr_branch_commit
-      if (database.getBranch(currHead) !== undefined){
-      curr_branch_commit = database.getBranch(currHead).commit_hash
-      } else {
-        curr_branch_commit = currHead
-      }
-      const cur_treeIn = (JSON.parse(database.getObject(curr_branch_commit).data).tree)
-
-      const curr_files = getTreeFiles(cur_treeIn)
-
-      const currRead = getDirectoryFiles('./')
-      const remote_comparison_files = []
-      const local_comparison_files = []
-      for (const file of curr_files){
-        remote_comparison_files.push([path.join(file[0].slice(1, file[0].length), file[1]), file[2]])
-      }
-
-      for (const file of currRead){
-        local_comparison_files.push([file, crypto.hash(fs.readFileSync(file, 'utf8'))])
-      }
-
-      if (JSON.stringify(remote_comparison_files.sort()) !== JSON.stringify(local_comparison_files.sort())){
-        return true
-      } else {
-        return false
-      }
 }
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
