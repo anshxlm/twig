@@ -26,6 +26,7 @@ import filesIntoDB from '../lib/util/filesIntoDb.js';
 import getTreeFilesAndHash from '../lib/util/getTreeFilesAndHash.js';
 import compare from '../lib/engine/compare.js';
 import comparison from '../lib/util/comparison.js';
+import twigLog from '../lib/engine/log.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -520,6 +521,7 @@ const cli = yargs(hideBin(process.argv))
     'Display commit history for your current branch', 
     () => {}, 
     (argv) => {
+
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
       let hash;
       if (database.getBranch(parentBranch) !== undefined){
@@ -528,28 +530,9 @@ const cli = yargs(hideBin(process.argv))
         hash = parentBranch
       }
     
+      twigLog(hash)
+      
 
-   const historyArr = []; 
-
-  while (hash) {
-    const commit = JSON.parse(database.getObjectLike(hash).data);
-
-    historyArr.push({hash:hash, message:commit.message})
-
-    hash = commit.parent;
-} 
-
-  for (const [index, msg] of historyArr.entries()){
-    if (index == 0){
-      logger.output(msg.message + chalk.hex('#ff7b00').bold(' (latest) ') + chalk.yellow(msg.hash.slice(0, 8)))
-    }
-    else {
-    logger.output(msg.message  + ' ' + chalk.yellow(msg.hash.slice(0, 8)))
-    }
-  }
-
-//  console.log('\nRoot')
- //deprecated and not needed: consoleFileTree(JSON.parse(database.getObject(database.getBranch(parentBranch).commit_hash).data).tree)
 
     }
   ).command(
