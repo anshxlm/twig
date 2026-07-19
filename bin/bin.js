@@ -14,6 +14,7 @@ import { get } from 'node:https';
 import { exec } from 'child_process';
 import { Octokit } from "@octokit/core";
 import os from "os";
+
 /* -------------------------------------------------------    CUSTOM IMPORTS   --------------------------------------------------------------------*/
 
 import { Logger } from '../lib/process/logger.js';
@@ -44,13 +45,7 @@ async function promptToken(){
     console.log(chalk.green('Token saved.'))
 }
 let GITHUB_SECRET
-try {
 GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
-} catch (error){
-if (error.code == "ENOENT")
-  promptToken()
-}
-
 /* ----------------------------------------------------------     ENGINE     --------------------------------------------------------------*/
 
 // console logs the tree layout of a tree (deprecated)
@@ -302,7 +297,7 @@ async function uploadFirstTree(treeHash, path = "", files = [], spinner) {
     const treeIn = JSON.parse(database.getObject(hash).data);
 
     for (const subtree of treeIn) {
-      if (subtree.type === "tree") {
+      if (subtree.type == "tree") {
         gather(subtree.hash, currentPath + subtree.name + "/");
       } else {
         files.push({
@@ -317,7 +312,7 @@ async function uploadFirstTree(treeHash, path = "", files = [], spinner) {
 
   gather(treeHash, path);
 
-  const CONCURRENCY_LIMIT = 25;
+  const CONCURRENCY_LIMIT = 10;
   for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
 
     spinner.text = `Github processing ${i} files`;
@@ -381,7 +376,7 @@ async function deltaUpload(tree1, tree2, spinner) {
       toUpload.push(item);
     }
   }
-  const CONCURRENCY_LIMIT = 25;
+  const CONCURRENCY_LIMIT = 10;
   for (let i = 0; i < toUpload.length; i += CONCURRENCY_LIMIT) {
     spinner.text = `Github processing ${i} files`;
     const chunk = toUpload.slice(i, i + CONCURRENCY_LIMIT);
@@ -404,8 +399,6 @@ async function deltaUpload(tree1, tree2, spinner) {
 }
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
-
-
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
@@ -1031,102 +1024,103 @@ for (const [filePath, hash] of merged) {
     (yargs) => {
     }, 
     async (argv) => {
+  const spinner = ora('Pushing...').start()
 
-      const spinner = ora('Pushing...').start()
+  const ALREADY_PUSHED = fs.readFileSync('./.twig/REMOTE', 'utf8');
 
-      const ALREADY_PUSHED = fs.readFileSync('./.twig/REMOTE', 'utf8');
+  spinner.text = `Pushing...${ALREADY_PUSHED ? "remote found":"remote not found"}` 
 
-      spinner.text = `Pushing...${ALREADY_PUSHED ? "remote found":"remote not found"}` 
+  let branchExists = true
 
-      let branchExists = true
-
-      const octokit = new Octokit({ auth: GITHUB_SECRET });
+  const octokit = new Octokit({ auth: GITHUB_SECRET });
     
-      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
+  const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
 
-      const OWNER = "anshxlm";
-      const REPO = "twigtesting";
-      const BRANCH = currBranch == "master" ? "main":currBranch; 
+  const OWNER = "anshxlm";
+  const REPO = "twigtesting";
+  const BRANCH = currBranch == "master" ? "main":currBranch; 
 
-      let currentParentSha = null;
+  let currentParentSha = null;
+  // MODIFIED: Added a variable to hold the remote's base tree SHA to use for our single delta push
+  let baseTreeSha = null;
 
-    try {
-
-      const { data: refData } = await octokit.request(
+  try {
+    const { data: refData } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/ref/heads/{branch}",
       { owner: OWNER, repo: REPO, branch: BRANCH }
     );
 
-      currentParentSha = refData.object.sha
+    currentParentSha = refData.object.sha
+    
+    // MODIFIED: Fetch the remote commit object immediately to get its tree SHA baseline
+    const { data: parentCommitData } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
+      { owner: OWNER, repo: REPO, commit_sha: currentParentSha }
+    );
+    baseTreeSha = parentCommitData.tree.sha;
   } catch (error) {
-
     if (error.status === 404) {
-    branchExists = false;
+      branchExists = false;
     }
-
-
   }
 
-  let commitList
-if (!ALREADY_PUSHED){
-  console.time('commitList')
-  commitList = getBranchCommitHistory(database.getBranch(currBranch).commit_hash).toReversed()
-  fs.writeFileSync('./.twig/REMOTE', "true", 'utf8');
-  console.timeEnd('commitList')
+  // MODIFIED: Changed this logic so we don't grab the whole historical array chain.
+  // We only target the single, final target commit hash we want the remote branch to end up at.
+  const targetCommitHash = database.getBranch(currBranch).commit_hash;
+  let trees;
 
-}  else {
-console.time('commitList')
-  commitList = getUnpushedCommitHistory(database.getBranch(currBranch).commit_hash)
-  console.timeEnd('commitList')
-}
-
-if (commitList.length == 0){
-
-  spinner.fail('No changes to push')
-} else {
-  for (let i = 0; i<commitList.length; i++){
-  console.log(`${i}/${commitList.length}`)
-  let trees
   spinner.text = 'Preparing...'
   console.time('PREPARE')
-  if (!ALREADY_PUSHED && i == 0){
-      trees = await uploadFirstTree(commitList[i].tree, "", [], spinner)
+
+  if (!ALREADY_PUSHED || !branchExists || !baseTreeSha) {
+    // MODIFIED: Instead of looping over every commit, process the entire latest tree all at once
+    trees = await uploadFirstTree(JSON.parse(database.getObject(database.getBranch(currBranch).commit_hash).data).tree, "", [], spinner);
+    fs.writeFileSync('./.twig/REMOTE', "true", 'utf8');
   } else {
-    const parent_commit = JSON.parse(database.getObject(commitList[i].hash).data).parent
-    trees = await deltaUpload(getTreeFilesAndHash(JSON.parse(database.getObject(parent_commit).data).tree), getTreeFilesAndHash(commitList[i].tree), spinner)
+    // MODIFIED: Instead of checking intermediate commits, pull down the remote tree structure instantly...
+    const { data: remoteTreeData } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=true", 
+      { owner: OWNER, repo: REPO, tree_sha: baseTreeSha }
+    );
+    
+    const remoteTreeMap = {};
+    for (const entry of remoteTreeData.tree) {
+      if (entry.type === "blob") remoteTreeMap[entry.path] = entry.sha;
+    }
+
+    // ...and pass it directly against our final local state map into your deltaUpload function.
+    trees = await deltaUpload(remoteTreeMap, getTreeFilesAndHash(JSON.parse(database.getObject(database.getBranch(currBranch).commit_hash).data).tree), spinner);
   }
   console.timeEnd('PREPARE')
+
+  // MODIFIED: Removed the `for` loop entirely. The block below runs exactly ONCE per push command now.
   spinner.text = 'Processing...'
-   if (trees.length == 0){
-    database.updateCommitSha('NOT PUSHED', commitList[i].hash)
-    continue
-   } else {
+  if (trees.length == 0) {
+    spinner.fail('No changes to push')
+  } else {
 
+    // MODIFIED: Sends the complete accumulated tree delta package in 1 single network call
     const { data: treeData } = await octokit.request("POST /repos/{owner}/{repo}/git/trees", {
-        owner: OWNER,
-        repo: REPO,
-        tree: trees,
-        base_tree: currentParentSha
-      });
+      owner: OWNER,
+      repo: REPO,
+      tree: trees,
+      base_tree: !ALREADY_PUSHED ? undefined : baseTreeSha
+    });
 
-      const { data: commitData } = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
-        owner: OWNER,
-        repo: REPO,
-        message: commitList[i].message,
-        tree: treeData.sha,
-        parents: currentParentSha ? [currentParentSha] : []
-      });
+    // MODIFIED: Creates 1 single commit on GitHub combining all your workspace changes together
+    const { data: commitData } = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
+      owner: OWNER,
+      repo: REPO,
+      message: `Syncing workspace to local commit: ${targetCommitHash.slice(0, 7)}`,
+      tree: treeData.sha,
+      parents: currentParentSha ? [currentParentSha] : []
+    });
     
-    database.updateCommitSha(commitData.sha, commitList[i].hash)
+    database.updateCommitSha(commitData.sha, targetCommitHash)
     currentParentSha = commitData.sha;
-
   }
-}
-  
-
     
-  if (branchExists){
-  
+  if (branchExists) {
     const { data: finalRef } = await octokit.request(
       "PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
       {
@@ -1139,21 +1133,17 @@ if (commitList.length == 0){
     );
 
     spinner.succeed(`Pushed to Github. Commit: ${chalk.magenta.bold(finalRef.object.sha.slice(0,7))}`)
-
   } else {
+    const { data: finalRef } = await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+      owner: OWNER,
+      repo: REPO,
+      ref: `refs/heads/${BRANCH}`,
+      sha: currentParentSha
+    });
 
-  const { data: finalRef } = await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
-    owner: OWNER,
-    repo: REPO,
-    ref: `refs/heads/${BRANCH}`,
-    sha: currentParentSha
-  });
-
-  spinner.succeed(`Pushed to Github. Commit: ${chalk.magenta.bold(finalRef.object.sha.slice(0,7))}`)
+    spinner.succeed(`Pushed to Github. Commit: ${chalk.magenta.bold(finalRef.object.sha.slice(0,7))}`)
+  }
 }
-
-}
-    }
   ).help()
   .showHelpOnFail(true)
   .demandCommand()
