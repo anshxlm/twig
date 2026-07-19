@@ -23,6 +23,9 @@ import initialize from '../lib/engine/initialize.js';
 import commit from '../lib/engine/commit.js';
 import getDirectoryFiles from '../lib/util/getDirectoryFiles.js';
 import filesIntoDB from '../lib/util/filesIntoDb.js';
+import getTreeFilesAndHash from '../lib/util/getTreeFilesAndHash.js';
+import compare from '../lib/engine/compare.js';
+import comparison from '../lib/util/comparison.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -142,46 +145,6 @@ function getTreeFiles(branch, currPath="/", allFiles = []) {
     }
 
     return allFiles
-}
-
-// returns ONLY files of a tree as well, but in a specific format {path:hash}
-function getTreeFilesAndHash(treeHash, path="", files ={}) {  
-
-    const treeIn = JSON.parse(database.getObjectLike(treeHash).data)
-
-
-    for (const subtree of treeIn) {
-        if (subtree.type === "tree") {
-            getTreeFilesAndHash(subtree.hash, path + subtree.name + "/", files);
-        } else {
-            const pathTree = path + subtree.name
-            files[pathTree] = subtree.hash
-        }
-    }
-
-    return files
-}
-
-// compares sets of files (from getTreeFilesAndHash) to see what changes.
-function comparison(tree1, tree2){
-
-
-const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
-
-for (const file of allFiles) {
-
-    if (!(file in tree1)) {
-        logger.output("ADDED: " + file);
-    }
-
-    else if (!(file in tree2)) {
-        logger.output("DELETED: " + file);
-    }
-
-    else if (tree1[file] !== tree2[file]) {
-        logger.output("MODIFIED: " + file);
-    }
-}
 }
 
 // checks if a commit is a descendant of another.
@@ -513,7 +476,26 @@ const cli = yargs(hideBin(process.argv))
     },
     async (argv) => {
 
-      await commit(argv)
+      let msg
+      if (!argv.m){
+           try {
+                     msg = await input({ message: 'what is your commit message? (CTRL C to cancel)', required:true,  validate: (value) => {
+                        if (value && value.toString().trim() !== '' && value !== '0' && value !== 'false') {
+                            return true;
+                    }
+                        return 'Please provide a input';
+                    }});
+                    } catch (error){
+                        if (error.name == "ExitPromptError"){
+                            logger.log("client", "commit cancelled")
+                            process.exit(0)
+                        } else {
+                            throw error
+                    }
+                    }
+      }
+
+      await commit(msg)
 
     }
   ).command(
@@ -530,20 +512,7 @@ const cli = yargs(hideBin(process.argv))
     }, 
     (argv) => {
       
-      let currentHash = JSON.parse(database.getObjectLike(`${argv.c2}%`).data).parent
-      let first = false;
-
-      while (currentHash){
-        if (currentHash == database.getObjectLike(`${argv.c1}%`).hash){
-          first = true
-          comparison(getTreeFilesAndHash(JSON.parse(database.getObjectLike(`${argv.c1}%`).data).tree), getTreeFilesAndHash(JSON.parse(database.getObjectLike(`${argv.c2}%`).data).tree))
-        }
-        const commit = JSON.parse(database.getObjectLike(currentHash).data);
-        currentHash = commit.parent;
-      }
-      if (!first){
-        comparison(getTreeFilesAndHash(JSON.parse(database.getObjectLike(`${argv.c2}%`).data).tree), getTreeFilesAndHash(JSON.parse(database.getObjectLike(`${argv.c1}%`).data).tree))
-      }
+      compare(argv.c1, argv.c2)
       
     }
   ).command(
