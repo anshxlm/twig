@@ -27,6 +27,7 @@ import getTreeFilesAndHash from '../lib/util/getTreeFilesAndHash.js';
 import compare from '../lib/engine/compare.js';
 import comparison from '../lib/util/comparison.js';
 import twigLog from '../lib/engine/log.js';
+import branch from '../lib/engine/branch.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -454,10 +455,6 @@ function uncommittedChanges(treeIn){
 
 const cli = yargs(hideBin(process.argv))
   .scriptName('twig')
-  .parserConfiguration({
-    'short-option-groups': false,
-    'camel-case-expansion': false, 
-  })
   .usage('Usage: $0 <command> [options]'
   ).command(
     'init',
@@ -536,73 +533,33 @@ const cli = yargs(hideBin(process.argv))
 
     }
   ).command(
-    'branch <name> [options]', 
-    'Create or delete a branch', 
-    (yargs) => {
-      return yargs.positional('name', {
-        describe: 'name of branch',
+  'branch [name]',
+  'Create or delete a branch', 
+  (yargs) => {
+    return yargs
+      .positional('name', {
+        describe: 'name of branch to create',
         type: 'string',
-        demandOption:false
-      }).option('rm', {
-        alias: 'remove',
-        describe: `delete the inputted branch. add ${chalk.bold('all')} to remove all branches except master.`
       })
-    }, 
-    async (argv) => {
-    
-    if (argv.rm){
-      if (argv.rm == "all"){
-        const branches = database.getAllBranches()
+      .option('remove', {
+        alias: 'rm',
+        type: 'array',
+        describe: 'delete the branches inputted after the --rm flag (if multiple)',
+      });
+  }, 
+  async (argv) => {
 
-        for (const branch of branches){
-          if (branch.name !== "master"){
-            database.deleteBranch(branch.name)
-          }
-        }
-
-      } else {
-      const confirmation = await confirm({message:`are you sure you want to delete branch ${chalk.magenta.bold(argv.name)}?`})
-      if (confirmation){
-        database.deleteBranch(argv.name)
-        logger.success('client', "branch deleted")
-      }
-    }
-
+    if (!argv.name && !argv.remove) {
+      console.error('Error: You must provide a branch name or use the --rm flag.');
+      process.exit();
     } else {
-      
-      const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
-      let undoDeletion = false;
-try {
-    database.newBranch(argv.name, database.getBranch(parentBranch).commit_hash)
-} catch (error){
-  if (error.message == "UNIQUE constraint failed: branches.name"){
-    if (database.getBranch(argv.name, true).deleted){
-      undoDeletion = true
-    } else {
-      logger.error('engine', "branch already exists")
-      process.exit()
-    }
-  } else throw error
-}
-    if (undoDeletion){
-      database.undoDeleteBranch(argv.name)
-      database.setParentBranch(database.getBranch(parentBranch).commit_hash, argv.name)
+
+      branch(argv)
+
     }
 
-    logger.success("client", `new branch ${chalk.magenta.bold(argv.name)} created`)
-    const checkout = await confirm({message:`would you like to checkout ${chalk.magenta.bold(argv.name)}?`, default:false})
-    if (checkout){
-      if (!uncommittedChanges()){
-      fs.writeFileSync('./.twig/HEAD',argv.name, 'utf8');
-      logger.success("client", "Current HEAD: Branch " + chalk.magenta.bold(argv.name))
-      } else {
-         logger.error("engine", "failed to checkout new branch because there are uncomitted changes in your current working directory.")
-      }
-    }
-
-      }
-    }
-  ).command(
+  }
+).command(
     'checkout <name>', 
     'Checkout a branch or commit', 
     (yargs) => {
