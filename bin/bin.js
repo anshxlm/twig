@@ -29,6 +29,7 @@ import comparison from '../lib/util/comparison.js';
 import twigLog from '../lib/engine/log.js';
 import branch from '../lib/engine/branch.js';
 import uncommittedChanges from '../lib/util/uncommittedChanges.js';
+import listBranches from '../lib/engine/branches.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -512,7 +513,7 @@ const cli = yargs(hideBin(process.argv))
     }
 
   }
-).command(
+  ).command(
     'checkout <name>', 
     'Checkout a branch or commit', 
     (yargs) => {
@@ -608,11 +609,8 @@ const cli = yargs(hideBin(process.argv))
     }, 
     (argv) => {
       
-      const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
-      const branches = database.getAllBranches()
-      for (const branch of branches){
-        logger.output(branch.name == currentBranch ? 'Branch ' + chalk.magenta.bold(branch.name + chalk.hex("#ff7b00")(" (HEAD)")) + ' - ' + (branch.commit_hash == null ? '(no latest commit)' :branch.commit_hash.slice(0, 8) + ' (latest commit)'): 'Branch ' + chalk.magenta.bold(branch.name) + ' - ' + (branch.commit_hash == null ? '(no latest commit)' :branch.commit_hash.slice(0, 8) + ' (latest commit)'))
-      }
+      listBranches()
+
     }
 
   ).command( 
