@@ -1176,40 +1176,86 @@ for (const [filePath, hash] of merged) {
     (yargs) => {
     }, 
     async (argv) => {
-      const spinner = ora('Pushing...').start()
 
       const Isfirst = fs.readFileSync('./.twig/REMOTE', 'utf8') == ""
 
       console.log(Isfirst)
       
-   async function pushRealFilesToGitHub(workDir, commits, repoUrl, token) {
+async function pullRealFilesFromGitHub(workDir, repoUrl, token) {
   const memfs = createFsFromVolume(new Volume());
   const dir = '/';
 
-  if (!Isfirst){
-    await git.clone({
-      fs: memfs,
-      http,
-      dir,
-      url: repoUrl,
-      ref: 'main',
-      depth: 1,
-      onAuth: () => ({ username: token })
-    });
+  await git.clone({
+    fs: memfs,
+    http,
+    dir,
+    url: repoUrl,
+    ref: 'main',
+    depth: 1,
+    onAuth: () => ({ username: token })
+  });
+
+  function copyMemToDisk(memPath, relPath = '') {
+    const items = memfs.readdirSync(memPath);
+
+    for (const item of items) {
+      if (item === '.git') continue;
+
+      const currentMemPath = path.join(memPath, item);
+      const currentRelPath = path.join(relPath, item);
+      const targetDiskPath = path.join(workDir, currentRelPath);
+      const stat = memfs.statSync(currentMemPath);
+
+      if (stat.isDirectory()) {
+        if (!fs.existsSync(targetDiskPath)) {
+          fs.mkdirSync(targetDiskPath, { recursive: true });
+        }
+        copyMemToDisk(currentMemPath, currentRelPath);
+      } else {
+        const parentFolder = path.dirname(targetDiskPath);
+        if (!fs.existsSync(parentFolder)) {
+          fs.mkdirSync(parentFolder, { recursive: true });
+        }
+        const content = memfs.readFileSync(currentMemPath);
+        fs.writeFileSync(targetDiskPath, content);
+      }
+    }
   }
-  else {
-    await git.init({ fs: memfs, dir , defaultBranch:'main'});
+
+  copyMemToDisk(dir);
+}
+
+async function pushRealFilesToGitHub(workDir, commits, repoUrl, token,) {
+  const spinner = ora('Pushing...').start();
+  const memfs = createFsFromVolume(new Volume());
+  const dir = '/';
+
+  if (!Isfirst) {
+    try {
+      await git.clone({
+        fs: memfs,
+        http,
+        dir,
+        url: repoUrl,
+        ref: 'main',
+        depth: 1,
+        onAuth: () => ({ username: token })
+      });
+    } catch (err) {
+      spinner.fail('Failed to access remote repository.');
+      return;
+    }
+  } else {
+    await git.init({ fs: memfs, dir, defaultBranch: 'main' });
     await git.addRemote({
       fs: memfs,
       dir,
       remote: 'origin',
       url: repoUrl
     });
-    console.log("first: true")
   }
 
   for (const commit of commits) {
-
     const items = memfs.readdirSync(dir);
     for (const item of items) {
       if (item !== '.git') {
@@ -1217,37 +1263,44 @@ for (const [filePath, hash] of merged) {
       }
     }
 
-    let commitTree
+    let commitTree;
+    const commitTreeHash = JSON.parse(database.getObject(commit.commit).data).tree;
 
-    if (Isfirst){
-      commitTree = getTreeFilesAndHash(commit.files)
+    if (Isfirst) {
+      commitTree = getTreeFilesAndHash(commitTreeHash);
     } else {
-      const parent = JSON.parse(database.getObject(commit.commit).data).parent
-      const parentTree = JSON.parse(database.getObject(parent).data).tree || null
-      const commitTreeHash = JSON.parse(database.getObject(commit.commit).data).tree
-      commitTree = deltaResolve(getTreeFilesAndHash(parentTree), {})
+      const parent = JSON.parse(database.getObject(commit.commit).data).parent;
+      const parentTree = database.getObject(parent) == null ? null : JSON.parse(database.getObject(parent).data).tree;
+      console.log(parentTree)
+      commitTree = deltaResolve(parentTree == null ? {} : getTreeFilesAndHash(parentTree), getTreeFilesAndHash(commitTreeHash));
+      console.log(commitTree)
     }
 
     const CommitEntries = Object.entries(commitTree);
-    console.time("File Push")
+    const filesToStage = [];
+
     for (const [index, [key, value]] of CommitEntries.entries()) {
-      spinner.text = `${index + 1} of ${CommitEntries.length}`
-      if (value == "DELETED"){
+      spinner.text = `${index + 1} of ${CommitEntries.length}`;
+      if (value === "DELETED") {
         await git.remove({
           fs: memfs,
           dir,
           filepath: key
         });
-        continue
+        continue;
       }
+
       const content = fs.readFileSync('./.twig/files/' + value);
-      if (key.split('/').length > 1){
-        memfs.mkdirSync('/' + key.split('/').slice(0, -1).join('/'), {recursive:true})
+      if (key.split('/').length > 1) {
+        memfs.mkdirSync('/' + key.split('/').slice(0, -1).join('/'), { recursive: true });
       }
       memfs.writeFileSync(`/${key}`, content);
-      await git.add({ fs: memfs, dir, filepath: key });
+      filesToStage.push(key);
     }
-    console.timeEnd("File Push")
+
+    if (filesToStage.length > 0) {
+      await git.add({ fs: memfs, dir, filepath: filesToStage, parallel: true });
+    }
 
     await git.commit({
       fs: memfs,
@@ -1259,41 +1312,42 @@ for (const [filePath, hash] of merged) {
       }
     });
   }
-try {
-  await git.push({
-    fs: memfs,
-    http,
-    dir,
-    remote: 'origin',
-    ref: 'main',
-    onAuth: () => ({ username: token })
-  });
-} catch (error){
-  if (error.data.reason == "not-fast-forward"){
-    console.log("fast forward error")
+
+  try {
     await git.push({
-    fs: memfs,
-    http,
-    dir,
-    remote: 'origin',
-    ref: 'main',
-    force:true,
-    onAuth: () => ({ username: token })
-  });
+      fs: memfs,
+      http,
+      dir,
+      remote: 'origin',
+      ref: 'main',
+      onAuth: () => ({ username: token })
+    });
+
+    fs.writeFileSync('./.twig/REMOTE', "true", 'utf8');
+    spinner.succeed('Push complete.');
+  } catch (error) {
+    if (error.data && error.data.reason === 'not-fast-forward') {
+      spinner.warn('Conflict detected: Remote repository contains commits not present locally. Please pull first.');
+    } else {
+      spinner.fail(`Push failed: ${error.message}`);
+    }
   }
 }
 
-  fs.writeFileSync('./.twig/REMOTE',"true", 'utf8');
-  spinner.succeed('done')
-}
+// pullRealFilesFromGitHub(
+//   "./", 
+//   "https://github.com/anshxlm/improved-chainsaw.git", 
+//   GITHUB_SECRET)
+
+
+const latestCommit = database.getBranch('master').commit_hash
 
 const myCustomCommits = [
   {
-    message: "BIG change",
+    message: "edits",
     authorName: "anshxlm",
     authorEmail: "gamerbob9393@gmail.com",
-    files: '82897a57a532e7d4f30ebbafa3c7ce62bcc80c56',
-    commit:"700117cc1ea12d421076331a458fd4c8c15c2241"
+    commit:latestCommit
   }
 ];
 
@@ -1303,6 +1357,9 @@ await pushRealFilesToGitHub(
   "https://github.com/anshxlm/improved-chainsaw.git", 
   GITHUB_SECRET
 );
+
+
+
 
 
 }
