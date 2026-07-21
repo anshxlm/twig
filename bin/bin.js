@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import envPaths from 'env-paths';
 import { input, password, confirm } from '@inquirer/prompts';
-import fs, { existsSync, read } from 'node:fs';
+import fs, { existsSync, mkdir, read } from 'node:fs';
 import { randomUUID } from 'node:crypto'
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -14,6 +14,10 @@ import { get } from 'node:https';
 import { exec } from 'child_process';
 import { Octokit } from "@octokit/core";
 import os from "os";
+import git from "isomorphic-git";
+import http from "isomorphic-git/http/node"
+import { fs as memfs } from 'memfs'
+import { createFsFromVolume, Volume } from "memfs";
 
 /* -------------------------------------------------------    CUSTOM IMPORTS   --------------------------------------------------------------------*/
 
@@ -397,6 +401,28 @@ async function deltaUpload(tree1, tree2, spinner) {
 
   return finalDeltas;
 }
+
+
+
+function deltaResolve(tree1, tree2) {
+
+  const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
+  
+  const result = {}
+
+  for (const file of allFiles) {
+    if (!(file in tree1)) {
+      result[file] = tree2[file]
+    } else if (!(file in tree2)) {
+      result[file] = "DELETED"
+    } else if (tree1[file] !== tree2[file]) {
+      result[file] = tree2[file]
+    }
+  }
+
+  return result;
+}
+
 
 /* ---------------------------------------------------------- CLIENT --------------------------------------------------------------*/
 
@@ -1143,6 +1169,142 @@ for (const [filePath, hash] of merged) {
 
     spinner.succeed(`Pushed to Github. Commit: ${chalk.magenta.bold(finalRef.object.sha.slice(0,7))}`)
   }
+}
+  ).command(
+    'git', 
+    'pushes to github', 
+    (yargs) => {
+    }, 
+    async (argv) => {
+      const spinner = ora('Pushing...').start()
+
+      const Isfirst = fs.readFileSync('./.twig/REMOTE', 'utf8') == ""
+
+      console.log(Isfirst)
+      
+   async function pushRealFilesToGitHub(workDir, commits, repoUrl, token) {
+  const memfs = createFsFromVolume(new Volume());
+  const dir = '/';
+
+  if (!Isfirst){
+    await git.clone({
+      fs: memfs,
+      http,
+      dir,
+      url: repoUrl,
+      ref: 'main',
+      depth: 1,
+      onAuth: () => ({ username: token })
+    });
+  }
+  else {
+    await git.init({ fs: memfs, dir , defaultBranch:'main'});
+    await git.addRemote({
+      fs: memfs,
+      dir,
+      remote: 'origin',
+      url: repoUrl
+    });
+    console.log("first: true")
+  }
+
+  for (const commit of commits) {
+
+    const items = memfs.readdirSync(dir);
+    for (const item of items) {
+      if (item !== '.git') {
+        memfs.rmSync(`/${item}`, { recursive: true, force: true });
+      }
+    }
+
+    let commitTree
+
+    if (Isfirst){
+      commitTree = getTreeFilesAndHash(commit.files)
+    } else {
+      const parent = JSON.parse(database.getObject(commit.commit).data).parent
+      const parentTree = JSON.parse(database.getObject(parent).data).tree || null
+      const commitTreeHash = JSON.parse(database.getObject(commit.commit).data).tree
+      commitTree = deltaResolve(getTreeFilesAndHash(parentTree), {})
+    }
+
+    const CommitEntries = Object.entries(commitTree);
+    console.time("File Push")
+    for (const [index, [key, value]] of CommitEntries.entries()) {
+      spinner.text = `${index + 1} of ${CommitEntries.length}`
+      if (value == "DELETED"){
+        await git.remove({
+          fs: memfs,
+          dir,
+          filepath: key
+        });
+        continue
+      }
+      const content = fs.readFileSync('./.twig/files/' + value);
+      if (key.split('/').length > 1){
+        memfs.mkdirSync('/' + key.split('/').slice(0, -1).join('/'), {recursive:true})
+      }
+      memfs.writeFileSync(`/${key}`, content);
+      await git.add({ fs: memfs, dir, filepath: key });
+    }
+    console.timeEnd("File Push")
+
+    await git.commit({
+      fs: memfs,
+      dir,
+      message: commit.message,
+      author: {
+        name: commit.authorName,
+        email: commit.authorEmail
+      }
+    });
+  }
+try {
+  await git.push({
+    fs: memfs,
+    http,
+    dir,
+    remote: 'origin',
+    ref: 'main',
+    onAuth: () => ({ username: token })
+  });
+} catch (error){
+  if (error.data.reason == "not-fast-forward"){
+    console.log("fast forward error")
+    await git.push({
+    fs: memfs,
+    http,
+    dir,
+    remote: 'origin',
+    ref: 'main',
+    force:true,
+    onAuth: () => ({ username: token })
+  });
+  }
+}
+
+  fs.writeFileSync('./.twig/REMOTE',"true", 'utf8');
+  spinner.succeed('done')
+}
+
+const myCustomCommits = [
+  {
+    message: "BIG change",
+    authorName: "anshxlm",
+    authorEmail: "gamerbob9393@gmail.com",
+    files: '82897a57a532e7d4f30ebbafa3c7ce62bcc80c56',
+    commit:"700117cc1ea12d421076331a458fd4c8c15c2241"
+  }
+];
+
+await pushRealFilesToGitHub(
+  "./", 
+  myCustomCommits, 
+  "https://github.com/anshxlm/improved-chainsaw.git", 
+  GITHUB_SECRET
+);
+
+
 }
   ).help()
   .showHelpOnFail(true)
