@@ -29,6 +29,7 @@ import commit from '../lib/engine/commit.js';
 import getDirectoryFiles from '../lib/util/getDirectoryFiles.js';
 import filesIntoDB from '../lib/util/filesIntoDb.js';
 import getTreeFilesAndHash from '../lib/util/getTreeFilesAndHash.js';
+import getTreeFiles from '../lib/util/getTreeFiles.js';
 import compare from '../lib/engine/compare.js';
 import comparison from '../lib/util/comparison.js';
 import twigLog from '../lib/engine/log.js';
@@ -259,7 +260,7 @@ try {
 function loadCommitToDirectory(treeIn){
    const folderPath = './';
    const initalfiles = fs.readdirSync(folderPath)
-  const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
+  const files = initalfiles.filter(item => item.startsWith('.twig') !== true && item.startsWith('twig-engine') !== true )
 
 for (const file of files) {
   const curPath = path.join(folderPath, file);
@@ -401,6 +402,116 @@ async function deltaUpload(tree1, tree2, spinner) {
 
   return finalDeltas;
 }
+
+
+function objectToTrees(node) {
+
+    const entries = [];
+
+    for (const [name, value] of Object.entries(node)) {
+
+        if (typeof value === "string") {
+
+            entries.push({
+                name,
+                type: "blob",
+                hash: value
+            });
+
+        } else {
+
+            const treeHash = objectToTrees(value);
+
+            entries.push({
+                name,
+                type: "tree",
+                hash: treeHash
+            });
+
+        }
+
+    }
+
+    entries.sort((a,b)=>a.name.localeCompare(b.name));
+
+    const treeHash = crypto.hash(JSON.stringify(entries));
+
+    database.insertObject(
+        treeHash,
+        "tree",
+        JSON.stringify(entries)
+    );
+
+    return treeHash;
+}
+
+function flatTreeToDirectory(flatTree){
+const root = {};
+
+for (const [filepath, blobHash] of Object.entries(flatTree)) {
+
+    const parts = filepath.split("/");
+
+    let current = root;
+
+    while (parts.length > 1) {
+
+        const folder = parts.shift();
+
+        current[folder] ??= {};
+
+        current = current[folder];
+
+    }
+
+    current[parts[0]] = blobHash;
+
+}
+
+return root
+}
+
+function applyDiff(parentTreeHash, diff, message, timestamp) {
+
+    const tree = getTreeFilesAndHash(parentTreeHash);
+
+    for (const change of diff) {
+
+        if (change.type === "DELETE") {
+
+            delete tree[change.path];
+
+        } else {
+            console.log(change.blob)
+            const blobHash = crypto.hash(change.blob);
+
+            fs.writeFileSync('./.twig/files/'+ blobHash, change.blob)
+
+            tree[change.path] = blobHash;
+
+        }
+
+    }
+
+    const map = flatTreeToDirectory(tree)
+    console.log(map)
+    const lastTree = objectToTrees(map)
+    const commitinfo = {
+            tree: lastTree,
+            message: message,
+            parent:null,
+            when: timestamp
+            };
+    
+            database.insertObject(
+            crypto.hash(JSON.stringify(commitinfo)),
+            "commit",
+            JSON.stringify(commitinfo)
+            );
+
+    return crypto.hash(JSON.stringify(commitinfo))
+}
+
 
 
 
@@ -1365,6 +1476,102 @@ await pushRealFilesToGitHub(
     (yargs) => {
     }, 
     async (argv) => {
+
+      const remote = "https://github.com/anshxlm/twigAdapter.git"
+      const dir = path.join('./',"twig-engine");
+      const token = GITHUB_SECRET
+
+
+      await git.clone({
+          fs,
+          http,
+      
+          dir,
+      
+          url: remote,
+      
+          ref: "main",
+          
+          noCheckout:true,
+      
+          singleBranch: true,
+      
+          onAuth: () => ({
+              username: token
+          })
+          })
+      
+          
+      const log = await git.log({
+          fs,
+          dir,
+          ref: "origin/main"
+      });
+      
+      for (const commit of log.toReversed()){
+      
+      const commitChanges = []
+      
+      if (commit.commit.parent && commit.commit.parent.length == 1){    
+      
+      await git.walk({
+        fs,
+        dir,
+        trees: [
+          git.TREE({ ref: commit.commit.parent[0] }),
+          git.TREE({ ref: commit.oid })
+        ],
+        map: async (filepath, [A, B]) => {
+      if (filepath !== '.'){
+          if (A === null) {
+          commitChanges.push({
+              type:"ADD",
+              path:filepath,
+              blob: await B.content()
+          })
+      }
+      
+      else if (B === null) {
+          commitChanges.push({
+              type: "DELETE",
+              path: filepath
+          })
+      }
+      
+      else if (A && B) {
+          if (await A.oid() !== await B.oid()) {
+              commitChanges.push({
+              type: "MODIFY",
+              path: filepath,
+              blob: await B.content()
+          },)
+          }
+      }
+      
+        }
+      }
+      });
+      
+      console.log(commitChanges)
+      const lastCommit = applyDiff("b90d120825c597dc86b1ab5cb28781261d255d84", commitChanges, commit.commit.message, commit.commit.committer.timestamp)
+    
+        if (log.toReversed().indexOf(commit) + 1 == Object.entries(log).length){
+        const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+        database.setParentBranch(lastCommit, currBranch)
+        loadCommitToDirectory(JSON.parse(database.getObject(lastCommit).data).tree)
+      }
+      
+      }  
+
+
+      }
+
+
+
+
+
+
+
 
 
 }
