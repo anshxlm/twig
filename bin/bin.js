@@ -1591,7 +1591,50 @@ await pushRealFilesToGitHub(
         loadCommitToDirectory(JSON.parse(database.getObject(lastCommit).data).tree)
       }
       
-      }  
+      }  else {
+
+async function importTree(treeOid, prefix = "") {
+
+    const tree = await git.readTree({
+        fs,
+        dir,
+        gitdir:dir,
+        oid: treeOid
+    });
+
+    for (const entry of tree.tree) {
+
+        if (entry.type === "tree") {
+
+            await importTree(
+                entry.oid,
+                prefix + entry.path + "/"
+            );
+
+        } else {
+
+            const blob = await git.readBlob({
+                fs,
+                dir,
+                gitdir:dir,
+                oid: entry.oid
+            });
+
+            const buffer = Buffer.from(blob.blob);
+            console.log(buffer.toString("utf8"))
+
+        }
+
+    }
+
+}
+
+
+      await importTree(commit.commit.tree)
+
+
+
+      }
 
 
       }
