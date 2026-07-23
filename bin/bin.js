@@ -472,8 +472,10 @@ return root
 }
 
 function applyDiff(parentTreeHash, diff, message, timestamp, oid) {
-
-    const tree = getTreeFilesAndHash(parentTreeHash);
+    let tree
+    if (!parentTreeHash){tree = {}} else {
+    tree = getTreeFilesAndHash(parentTreeHash)
+    }
 
     for (const change of diff) {
 
@@ -1593,8 +1595,7 @@ await pushRealFilesToGitHub(
       
       }  else {
 
-async function importTree(treeOid, prefix = "") {
-
+async function importTree(treeOid, prefix = "", changes = []) {
     const tree = await git.readTree({
         fs,
         dir,
@@ -1608,7 +1609,8 @@ async function importTree(treeOid, prefix = "") {
 
             await importTree(
                 entry.oid,
-                prefix + entry.path + "/"
+                prefix + entry.path + "/",
+                changes
             );
 
         } else {
@@ -1621,16 +1623,26 @@ async function importTree(treeOid, prefix = "") {
             });
 
             const buffer = Buffer.from(blob.blob);
-            console.log(buffer.toString("utf8"))
+             changes.push({
+              type:"ADD",
+              path:entry.path,
+              blob: buffer.toString("utf8")
+          })
 
         }
 
     }
 
+    return changes
+
 }
 
 
-      await importTree(commit.commit.tree)
+      const changes = await importTree(commit.commit.tree)
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+      console.log(changes)
+      const lastCommit = applyDiff(null, changes, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
+      database.setParentBranch(lastCommit, currBranch)
 
 
 
