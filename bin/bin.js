@@ -1358,6 +1358,14 @@ await pushRealFilesToGitHub(
   GITHUB_SECRET
 );
 
+}
+  ).command(
+    'git-test', 
+    'pushes to github', 
+    (yargs) => {
+    }, 
+    async (argv) => {
+
 
 }
   ).help()
