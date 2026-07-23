@@ -260,7 +260,7 @@ try {
 function loadCommitToDirectory(treeIn){
    const folderPath = './';
    const initalfiles = fs.readdirSync(folderPath)
-  const files = initalfiles.filter(item => item.startsWith('.twig') !== true && item.startsWith('twig-engine') !== true )
+  const files = initalfiles.filter(item => item.startsWith('.twig') !== true)
 
 for (const file of files) {
   const curPath = path.join(folderPath, file);
@@ -471,7 +471,7 @@ for (const [filepath, blobHash] of Object.entries(flatTree)) {
 return root
 }
 
-function applyDiff(parentTreeHash, diff, message, timestamp) {
+function applyDiff(parentTreeHash, diff, message, timestamp, oid) {
 
     const tree = getTreeFilesAndHash(parentTreeHash);
 
@@ -482,31 +482,35 @@ function applyDiff(parentTreeHash, diff, message, timestamp) {
             delete tree[change.path];
 
         } else {
+          if (change.blob !==undefined){
             console.log(change.blob)
             const blobHash = crypto.hash(change.blob);
 
             fs.writeFileSync('./.twig/files/'+ blobHash, change.blob)
 
             tree[change.path] = blobHash;
+          }
 
         }
 
     }
 
+    const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
     const map = flatTreeToDirectory(tree)
     console.log(map)
     const lastTree = objectToTrees(map)
     const commitinfo = {
             tree: lastTree,
-            message: message,
-            parent:null,
+            message: message.replace("\n",""),
+            parent:database.getBranch(currBranch).commit_hash,
             when: timestamp
             };
     
             database.insertObject(
             crypto.hash(JSON.stringify(commitinfo)),
             "commit",
-            JSON.stringify(commitinfo)
+            JSON.stringify(commitinfo), 
+            oid
             );
 
     return crypto.hash(JSON.stringify(commitinfo))
@@ -1495,6 +1499,8 @@ await pushRealFilesToGitHub(
           noCheckout:true,
       
           singleBranch: true,
+
+          gitdir:dir,
       
           onAuth: () => ({
               username: token
@@ -1505,10 +1511,35 @@ await pushRealFilesToGitHub(
       const log = await git.log({
           fs,
           dir,
+          gitdir:dir,
           ref: "origin/main"
       });
-      
-      for (const commit of log.toReversed()){
+
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+      let lastPulled = null
+      let commit = database.getBranch(currBranch).commit_hash
+      while (commit){
+        if (database.getObject(commit).commit_sha){
+        lastPulled = database.getObject(commit).commit_sha
+        break
+        } else {
+        commit = JSON.parse(database.getObject(commit).data).parent
+        }
+      }
+
+      console.log(lastPulled)
+
+      let LogChunk
+
+      if (lastPulled){
+        const index = log.toReversed().findIndex(item => item.oid == lastPulled)
+        LogChunk = log.toReversed().slice(index + 1)
+      } else {
+        LogChunk = log.toReversed()
+      }
+      console.log(LogChunk)
+
+      for (const commit of LogChunk){
       
       const commitChanges = []
       
@@ -1517,6 +1548,7 @@ await pushRealFilesToGitHub(
       await git.walk({
         fs,
         dir,
+        gitdir:dir,
         trees: [
           git.TREE({ ref: commit.commit.parent[0] }),
           git.TREE({ ref: commit.oid })
@@ -1551,13 +1583,11 @@ await pushRealFilesToGitHub(
         }
       }
       });
-      
+      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       console.log(commitChanges)
-      const lastCommit = applyDiff("b90d120825c597dc86b1ab5cb28781261d255d84", commitChanges, commit.commit.message, commit.commit.committer.timestamp)
-    
-        if (log.toReversed().indexOf(commit) + 1 == Object.entries(log).length){
-        const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
-        database.setParentBranch(lastCommit, currBranch)
+      const lastCommit = applyDiff(JSON.parse(database.getObject(database.getBranch(currBranch).commit_hash).data).tree, commitChanges, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
+      database.setParentBranch(lastCommit, currBranch)
+        if (LogChunk.indexOf(commit) + 1 == LogChunk.length){
         loadCommitToDirectory(JSON.parse(database.getObject(lastCommit).data).tree)
       }
       
