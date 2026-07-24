@@ -515,7 +515,7 @@ function applyDiff(parentTreeHash, diff, message, timestamp, oid) {
             oid
             );
 
-    return crypto.hash(JSON.stringify(commitinfo))
+    return [crypto.hash(JSON.stringify(commitinfo)), oid]
 }
 
 
@@ -1483,8 +1483,16 @@ await pushRealFilesToGitHub(
     }, 
     async (argv) => {
 
-      const remote = "https://github.com/anshxlm/twigAdapter.git"
-      const dir = path.join('./',"twig-engine");
+      let remote
+      const remote_read = fs.readFileSync('./.twig/REMOTE', 'utf8')
+      if (!remote_read){
+        logger.error("engine", "cannot find remote.")
+        process.exit()
+      } else {
+        remote = remote_read
+      }
+
+      const dir = path.join('./.twig/',"twig-engine");
       const token = GITHUB_SECRET
 
 
@@ -1588,9 +1596,13 @@ await pushRealFilesToGitHub(
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       console.log(commitChanges)
       const lastCommit = applyDiff(JSON.parse(database.getObject(database.getBranch(currBranch).commit_hash).data).tree, commitChanges, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
-      database.setParentBranch(lastCommit, currBranch)
+      database.setParentBranch(lastCommit[0], currBranch)
+
         if (LogChunk.indexOf(commit) + 1 == LogChunk.length){
-        loadCommitToDirectory(JSON.parse(database.getObject(lastCommit).data).tree)
+        
+        fs.writeFileSync('./.twig/GITHUB', lastCommit[1], 'utf8')
+        loadCommitToDirectory(JSON.parse(database.getObject(lastCommit[0]).data).tree)
+      
       }
       
       }  else {
@@ -1642,24 +1654,36 @@ async function importTree(treeOid, prefix = "", changes = []) {
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       console.log(changes)
       const lastCommit = applyDiff(null, changes, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
-      database.setParentBranch(lastCommit, currBranch)
-
-
+      database.setParentBranch(lastCommit[0], currBranch)
+      
+      if (LogChunk.length == 1){
+        loadCommitToDirectory(JSON.parse(database.getObject(lastCommit[0]).data).tree)
+      }
 
       }
 
 
       }
 
-
-
-
-
-
-
+      fs.rmSync(dir, {force:true, recursive:true})
 
 
 }
+  ).command(
+    'set remote <url>', 
+    'set remote url', 
+    (yargs) => {
+      return yargs.positional('url', {
+        describe: 'git url',
+        type: 'string',
+      })
+    }, 
+    async (argv) => {
+
+      fs.writeFileSync('./.twig/REMOTE', argv.url, 'utf8')
+      logger.success("client", "remote set")
+
+    }
   ).help()
   .showHelpOnFail(true)
   .demandCommand()
