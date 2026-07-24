@@ -36,6 +36,7 @@ import twigLog from '../lib/engine/log.js';
 import branch from '../lib/engine/branch.js';
 import uncommittedChanges from '../lib/util/uncommittedChanges.js';
 import listBranches from '../lib/engine/branches.js';
+import push from '../lib/github/push.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -1477,8 +1478,8 @@ await pushRealFilesToGitHub(
 
 }
   ).command(
-    'git-test', 
-    'pushes to github', 
+    'github_pull', 
+    'pulls changes from github', 
     (yargs) => {
     }, 
     async (argv) => {
@@ -1494,7 +1495,6 @@ await pushRealFilesToGitHub(
 
       const dir = path.join('./.twig/',"twig-engine");
       const token = GITHUB_SECRET
-
 
       await git.clone({
           fs,
@@ -1517,13 +1517,19 @@ await pushRealFilesToGitHub(
           })
           })
       
-          
+    try{
       const log = await git.log({
           fs,
           dir,
           gitdir:dir,
           ref: "origin/main"
       });
+    } catch (err){
+      if (err.code == "NotFoundError"){
+        logger.warning("engine", 'Github repo is empty')
+        process.exit()
+      }
+    }
 
       const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
       let lastPulled = null
@@ -1682,6 +1688,15 @@ async function importTree(treeOid, prefix = "", changes = []) {
 
       fs.writeFileSync('./.twig/REMOTE', argv.url, 'utf8')
       logger.success("client", "remote set")
+
+    }
+  ).command(
+    'github_push', 
+    'push commits to github', 
+    (yargs) => {},
+    async (argv) => {
+
+      await push()
 
     }
   ).help()
