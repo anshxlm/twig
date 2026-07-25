@@ -1504,11 +1504,9 @@ await pushRealFilesToGitHub(
       
           url: remote,
       
-          ref: "main",
           
           noCheckout:true,
-      
-          singleBranch: true,
+
 
           gitdir:dir,
       
@@ -1516,24 +1514,50 @@ await pushRealFilesToGitHub(
               username: token
           })
           })
+
+
+
+const branches = await git.listBranches({
+    fs,
+    gitdir: dir,
+    remote: "origin"
+});
+
+console.log(branches)
+
+
+for (const branch of branches) {
+  if (branch == "HEAD") continue;
+  
+  const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+
+  const branchName = branch == "main" ? "master":branch
+
+  const exists = database.getBranch(branchName)
+
+  if (!exists){
+    database.newBranch(branchName, database.getBranch(currBranch).commit_hash)
+  }
+
+
     let log
     try{
       log = await git.log({
           fs,
           dir,
           gitdir:dir,
-          ref: "origin/main"
+          ref: `origin/${branch}`,
       });
     } catch (err){
       if (err.code == "NotFoundError"){
-        logger.warning("engine", 'Github repo is empty')
+        logger.warning("engine", 'Github repo is empty SRC:' + branchName)
         process.exit()
       }
     }
 
-      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+
       let lastPulled = null
-      let commit = database.getBranch(currBranch).commit_hash
+      let commit = database.getBranch(branchName).commit_hash
       while (commit){
         if (database.getObject(commit).commit_sha){
         lastPulled = database.getObject(commit).commit_sha
@@ -1543,7 +1567,7 @@ await pushRealFilesToGitHub(
         }
       }
 
-      console.log(lastPulled)
+
 
       let LogChunk
 
@@ -1553,7 +1577,7 @@ await pushRealFilesToGitHub(
       } else {
         LogChunk = log.toReversed()
       }
-      console.log(LogChunk)
+
 
       for (const commit of LogChunk){
       
@@ -1599,10 +1623,10 @@ await pushRealFilesToGitHub(
         }
       }
       });
-      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+
       console.log(commitChanges)
-      const lastCommit = applyDiff(JSON.parse(database.getObject(database.getBranch(currBranch).commit_hash).data).tree, commitChanges, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
-      database.setParentBranch(lastCommit[0], currBranch)
+      const lastCommit = applyDiff(JSON.parse(database.getObject(database.getBranch(branchName).commit_hash).data).tree, commitChanges, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
+      database.setParentBranch(lastCommit[0], branchName)
 
         if (LogChunk.indexOf(commit) + 1 == LogChunk.length){
         
@@ -1657,10 +1681,10 @@ async function importTree(treeOid, prefix = "", changes = []) {
 
 
       const changes = await importTree(commit.commit.tree)
-      const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
+
       console.log(changes)
       const lastCommit = applyDiff(null, changes, commit.commit.message, commit.commit.committer.timestamp, commit.oid)
-      database.setParentBranch(lastCommit[0], currBranch)
+      database.setParentBranch(lastCommit[0], branchName)
       
       if (LogChunk.length == 1){
         fs.writeFileSync('./.twig/GITHUB', lastCommit[1], 'utf8')
@@ -1671,6 +1695,7 @@ async function importTree(treeOid, prefix = "", changes = []) {
 
 
       }
+    }
 
       fs.rmSync(dir, {force:true, recursive:true})
 
