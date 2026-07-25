@@ -1516,9 +1516,9 @@ await pushRealFilesToGitHub(
               username: token
           })
           })
-      
+    let log
     try{
-      const log = await git.log({
+      log = await git.log({
           fs,
           dir,
           gitdir:dir,
@@ -1663,6 +1663,7 @@ async function importTree(treeOid, prefix = "", changes = []) {
       database.setParentBranch(lastCommit[0], currBranch)
       
       if (LogChunk.length == 1){
+        fs.writeFileSync('./.twig/GITHUB', lastCommit[1], 'utf8')
         loadCommitToDirectory(JSON.parse(database.getObject(lastCommit[0]).data).tree)
       }
 
