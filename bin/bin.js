@@ -1523,8 +1523,14 @@ const branches = await git.listBranches({
     remote: "origin"
 });
 
-console.log(branches)
+if (branches.length == 0){
+  logger.log("client", "repository is empty")
+  fs.rmSync(dir, {force:true, recursive:true})
+  process.exit()
 
+} else {
+  console.log(branches)
+}
 
 for (const branch of branches) {
   if (branch == "HEAD") continue;
@@ -1551,10 +1557,10 @@ for (const branch of branches) {
     } catch (err){
       if (err.code == "NotFoundError"){
         logger.warning("engine", 'Github repo is empty SRC:' + branchName)
+        fs.rmSync(dir, {force:true, recursive:true})
         process.exit()
       }
     }
-
 
       let lastPulled = null
       let commit = database.getBranch(branchName).commit_hash
