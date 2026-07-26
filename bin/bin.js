@@ -1114,6 +1114,7 @@ for (const [filePath, hash] of merged) {
         tree: rootHash,
         message: `Merged ${argv.name} into ${currBranch}`,
         parent:currBranchLatestCommit,
+        mergeParent:mergeBranchLatestCommit,
         when: Date.now()
         };
 
