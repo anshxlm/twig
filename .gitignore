@@ -2,7 +2,6 @@ node_modules/
 testFolder/
 .twig/
 octokit.js
-pull.js
 index.js
 test/hello.txt
 git.js
