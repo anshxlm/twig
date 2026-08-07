@@ -26,5 +26,8 @@
     "ora": "^9.4.0",
     "yargs": "^18.0.0",
     "zod": "^4.4.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
   }
 }
