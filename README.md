@@ -1,5 +1,8 @@
-# **Twig Docs**
-This is Twig, a lightning fast version control client. Below you will find detailed documentation into how it works as well as commands and website features.
+# **Twig**
+A fast and powerful version control client with Github compatibility, custom file hosting, and a built in AI to ask about your commits. 
+
+![commit demo](https://github.com/anshxlm/twig/blob/3157754cb0a2a71954ccbebb8ee1dd87a66d3c3b/docs/hero.gif)
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Get started](#)
