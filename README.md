@@ -1,4 +1,11 @@
+![header](https://github.com/anshxlm/twig/blob/c511a4e4aa5c116b4551515bee724cba3760bfbb/docs/header.png)
+
+<div align="center">
+
 # **Twig**
+
+</div>
+
 A fast and powerful version control client with Github compatibility, custom file hosting, and a built in AI to ask about your commits. 
 
 ![commit demo](https://github.com/anshxlm/twig/blob/3157754cb0a2a71954ccbebb8ee1dd87a66d3c3b/docs/hero.gif)
@@ -9,24 +16,26 @@ A fast and powerful version control client with Github compatibility, custom fil
 3. [Features](#)
 4. [Architecture](#)
 ## Introduction
-Twig is a command-line version control system built on NodeJS and distributed through npm. It is designed to capture snapshots of your work reliably and efficiently, allowing you to track the complete history of a project with speed. It has the core features of a version control system, including repository initialization, commits, branching, merging, history inspection, and synchronization with its own remote. Files are stores in a space efficient manner identical file contents are never stored more than once within a repository. Twig also includes **xxx**, a hosting platform for remote repositories.
+Twig is a command-line version control system built on NodeJS and distributed through npm. It is designed to capture snapshots of your work reliably and efficiently, allowing you to track the complete history of a project with speed. It has the core features of a version control system, including commits, branching, merging, history inspection, Github push/pulling, and synchronization with its own storage server.
 ## Get started
 Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
 
 ```
-npm install -g twigvcs
+npm install -g twigvc
 ```
 From there, initialize twig in your working directory
 ```
 twig init
 ```
-> [!NOTE]
-> Twig automatically makes an initial commit with the `init` command, and defaults to the branch `master`.
-
 Make your first commit with
 ```
-twig commit -m "my first change"
+twig commit -m "my first commit"
 ```
+Read the commit back with
+```
+twig log
+```
+
 Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## Commands
