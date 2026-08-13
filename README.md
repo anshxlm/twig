@@ -1,12 +1,12 @@
-![header](https://github.com/anshxlm/twig/blob/c511a4e4aa5c116b4551515bee724cba3760bfbb/docs/header.png)
-
 <div align="center">
+  
+![header](https://github.com/anshxlm/twig/blob/69236ec584726e7c94fd2306635e0e669c6558a0/docs/header.png)
 
-# **Twig**
+# **Fast, smart version control**
 
 </div>
 
-A fast and powerful version control client with Github compatibility, custom file hosting, and a built in AI to ask about your commits. 
+Twig is a fast and powerful version control client with Github compatibility, custom file hosting, and a built in AI to ask about your commits. 
 
 ![commit demo](https://github.com/anshxlm/twig/blob/3157754cb0a2a71954ccbebb8ee1dd87a66d3c3b/docs/hero.gif)
 
@@ -16,7 +16,7 @@ A fast and powerful version control client with Github compatibility, custom fil
 3. [Features](#)
 4. [Architecture](#)
 ## Introduction
-Twig is a command-line version control system built on NodeJS and distributed through npm. It is designed to capture snapshots of your work reliably and efficiently, allowing you to track the complete history of a project with speed. It has the core features of a version control system, including commits, branching, merging, history inspection, Github push/pulling, and synchronization with its own storage server.
+Twig is a command-line version control system built on NodeJS. It is designed to capture snapshots of your work allowing you to track the complete history of a project. It has the core features of a version control system, 
 ## Get started
 Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
 
@@ -43,13 +43,18 @@ Congrats on getting started with Twig! Read the rest of the features [here](#)
 |---------|-------------|
 | [`init`](#twig-init) | Initialize a new Twig repository. |
 | [`commit`](#twig-commit) | Create a snapshot of the current project state. |
-| [`compare`](#twig-compare) | Compare two commits, trees, or the working directory. |
+| [`compare`](#twig-compare) | Compare two commits |
 | [`log`](#twig-log) | Display commit history. |
-| [`branch`](#twig-branch) | Create, list, or delete branches. |
-| [`checkout`](#twig-checkout) | Switch branches or restore a previous commit. |
-| [`gui`](#twig-gui) | Launch the local Twig web interface. |
-| [`login`](#twig-login) | Authenticate with Twighub. |
-| [`push`](#twig-push) | Upload commits and objects to a remote repository. |
+| [`branch`](#twig-branch) | Create or delete branches. |
+| [`branches`](#twig-branches) | List all branches |
+| [`checkout`](#twig-checkout) | Checkout a branch or commit |
+| [`merge`](#twig-merge) | Merge a branch into the current branch |
+| [`rollback`](#twig-rollback) | Rollback to a commit |
+| [`github push`](#twig-github-push) | Push commits to Github |
+| [`github pull`](#twig-github-pull) | Pull commits from Github |
+| [`gui`](#twig-gui) | Launch the local twig web interface. |
+| [`login`](#twig-login) | Authenticate with twigs file hosting server. |
+| [`push`](#twig-push) | Upload commits and objects to store on twig servers. |
 
 ## `twig init`
 
