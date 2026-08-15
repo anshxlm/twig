@@ -12,12 +12,17 @@ Twig is a fast and powerful version control client with Github compatibility, cu
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Get started](#)
-3. [Features](#)
+2. [Quick Start](#quick-start)
+3. [Commands](#commands)
 4. [Architecture](#)
 ## Introduction
 Twig is a command-line version control system built on NodeJS. It is designed to capture snapshots of your work allowing you to track the complete history of a project. It has the core features of a version control system, 
-## Get started
+
+### Package
+
+The package can be found on npm [here](https://PACKAGE_LINK_SOON)
+
+## Quick Start
 Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
 
 ```
@@ -43,8 +48,8 @@ Congrats on getting started with Twig! Read the rest of the features [here](#)
 |---------|-------------|
 | [`init`](#twig-init) | Initialize a new Twig repository. |
 | [`commit`](#twig-commit) | Create a snapshot of the current project state. |
-| [`compare`](#twig-compare) | Compare two commits |
 | [`log`](#twig-log) | Display commit history. |
+| [`compare`](#twig-compare) | Compare two commits |
 | [`branch`](#twig-branch) | Create or delete branches. |
 | [`branches`](#twig-branches) | List all branches |
 | [`checkout`](#twig-checkout) | Checkout a branch or commit |
@@ -58,95 +63,19 @@ Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## `twig init`
 
-Initializes a new Twig repository in the current directory by creating a `.twig` directory.
+Initializes Twig in the current working directory by creating a `.twig` folder.
 
 For example, running `twig init` inside `C:\Users\user1\myProject` creates `C:\Users\user1\myProject\.twig`
 
-During initialization, Twig prompts for a repository name. This name is only required if you intend to push the repository to a remote host such as Twighub.
-
-> [!NOTE]
-> Repository names must be unique per user on the remote host. If another repository with the same name already exists in your account, the initial push will be rejected.
-
 ## `twig commit`
 
-Creates a snapshot of the current project state.
+Creates a commit of the current project state.
 
-Twig scans the working directory, stores any new or modified objects, constructs a new tree, and creates a commit that records the project's state at that point in time.
+Twig scans the working directory, stores any new or modified objects, and creates a commit that records the project's state at that point in time.
 
 `twig commit -m "Implement authentication"`
 
-Every commit references its parent commit, allowing the complete project history to be reconstructed.
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| [`init`](#twig-init) | Initialize a new Twig repository. |
-| [`commit`](#twig-commit) | Create a snapshot of the current project state. |
-| [`compare`](#twig-compare) | Compare commits, trees, or the working directory. |
-| [`log`](#twig-log) | Display commit history. |
-| [`branch`](#twig-branch) | Create, list, or delete branches. |
-| [`checkout`](#twig-checkout) | Switch branches or restore a previous commit. |
-| [`gui`](#twig-gui) | Launch the local Twig web interface. |
-| [`login`](#twig-login) | Authenticate with Twighub. |
-| [`push`](#twig-push) | Upload local commits to a remote repository. |
-
----
-
-## `twig init`
-
-Initializes a new Twig repository in the current directory by creating a `.twig` directory.
-
-For example, running
-
-```bash
-twig init
-```
-
-inside
-
-```text
-C:\Users\user1\myProject
-```
-
-creates
-
-```text
-C:\Users\user1\myProject\.twig
-```
-
-During initialization, Twig prompts for a repository name. This name is only required if you intend to push the repository to a remote host such as Twighub.
-
-> [!NOTE]
-> Repository names must be unique per user on the remote host. If another repository with the same name already exists in your account, the initial push will be rejected.
-
----
-
-## `twig compare`
-
-Compares two commits, trees, or the current working directory.
-
-Changed files are categorized as:
-
-- Added
-- Modified
-- Deleted
-- Unchanged
-
-Examples:
-
-```bash
-twig compare
-```
-
-Compare the working directory against the latest commit.
-
-```bash
-twig compare <commitA> <commitB>
-```
-
-Compare any two commits.
-
+Every commit references its parent commit, allowing the project history to be reconstructed.
 ---
 
 ## `twig log`
@@ -168,26 +97,58 @@ Future versions of Twig will include graphical commit history visualization and 
 
 ---
 
-## `twig branch`
+## `twig compare`
 
-Creates, lists, and deletes branches.
+Compares two commits.
 
-List all branches:
+Changed files are categorized as:
+
+- Added
+- Modified
+- Deleted
+
+Example:
 
 ```bash
-twig branch
+twig compare bebfbec8 24549b3d
 ```
+
+Output:
+
+```
+ADDED docs/README.md
+DELETED tests/parser.js
+MODIFIED src/lib/utils.js
+```
+
+Compare the working directory against the latest commit.
+
+---
+
+## `twig branch`
+
+Create and delete branches.
 
 Create a branch:
 
 ```bash
-twig branch feature-login
+twig branch feature1
 ```
 
 Delete a branch:
 
 ```bash
-twig branch -d feature-login
+twig branch --rm feature1
+```
+
+---
+
+## `twig branches`
+
+List all branches.
+
+```bash
+twig branches
 ```
 
 ---
@@ -199,16 +160,62 @@ Switches the working directory to another branch or commit.
 Switch branches:
 
 ```bash
-twig checkout main
+twig checkout master
 ```
 
 Checkout a previous commit:
 
 ```bash
-twig checkout <commit>
+twig checkout ae82c3f3
 ```
 
-The working directory is updated to match the snapshot stored by the selected commit.
+The working directory is updated to match the snapshot stored by the selected commit/branch.
+
+---
+
+## `twig merge`
+
+Merge a branch into the current branch
+
+For example, if your current branch is master, using:
+
+```bash
+twig merge feature
+```
+
+will merge branch feature into branch master.
+
+---
+
+## `twig rollback`
+
+Rollback the working directory and commit log to a certain commit
+
+```bash
+twig rollback b0f45dd0
+```
+
+This will restore the working directory to what it was at the specific commit, and remove all the commits succeeding it. 
+
+---
+
+## `twig github push`
+
+Push all the commits on your local machine that don't exist on Github to it. 
+
+```bash
+twig github push
+```
+
+---
+
+## `twig github pull`
+
+Pull commits from Github that don't exist on your local machine.
+
+```bash
+twig github pull
+```
 
 ---
 
@@ -216,7 +223,7 @@ The working directory is updated to match the snapshot stored by the selected co
 
 Starts Twig's local web interface.
 
-The command launches a local HTTP server and opens your default browser, allowing you to browse commits, inspect branches, compare changes, and manage your repository through a graphical interface.
+This command starts a local HTTP site allowing you to browse each branches commits, and explore the file system at each commit.
 
 ```bash
 twig gui
