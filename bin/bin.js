@@ -18,9 +18,6 @@ import git from "isomorphic-git";
 import http from "isomorphic-git/http/node"
 import { fs as memfs } from 'memfs'
 import { createFsFromVolume, Volume } from "memfs";
-
-/* -------------------------------------------------------    CUSTOM IMPORTS   --------------------------------------------------------------------*/
-
 import { Logger } from '../lib/process/logger.js';
 import * as database from '../lib/process/database.js'
 import * as crypto from '../lib/process/crypto.js'
@@ -56,23 +53,6 @@ let GITHUB_SECRET
 GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
 /* ----------------------------------------------------------     ENGINE     --------------------------------------------------------------*/
 
-// console logs the tree layout of a tree (deprecated)
-function consoleFileTree(treeHash, indent = "") {
-
-    const treeIn = JSON.parse(database.getObjectLike(treeHash).data);
-
-    for (let i = 0; i < treeIn.length; i++) {
-
-        const last = i === treeIn.length - 1;
-
-        console.log(indent +(last ? "└──" : "├──") +treeIn[i].name);
-
-        if (treeIn[i].type === "tree") {
-            consoleFileTree(treeIn[i].hash,indent + "│   ");
-        }
-    }
-}
-
 // returns the tree contents
 function treeContents(treeHash, indent = "",) {
   const guiArray = []
@@ -85,15 +65,15 @@ function treeContents(treeHash, indent = "",) {
 
         guiArray.push(treeIn[i]);
     }
-  
+
     return guiArray
 }
 
 // get the commit history of a branch provided a branches latest commit
-function getBranchCommitHistory(branch_hash){  
+function getBranchCommitHistory(branch_hash){
   let hash = branch_hash
 
-   const historyArr = []; 
+   const historyArr = [];
 
   while (hash) {
 
@@ -102,19 +82,19 @@ function getBranchCommitHistory(branch_hash){
     historyArr.push({hash:hash, message:commit.message, tree:commit.tree})
 
     hash = commit.parent;
-} 
+}
 
   return historyArr
 
 }
 
 // only return commits of a branch that have not been pushed to github
-function getUnpushedCommitHistory(branch_hash){  
+function getUnpushedCommitHistory(branch_hash){
 
   let hash = branch_hash
   const hasPushed = database.getObject(branch_hash).commit_sha
 
-   const historyArr = []; 
+   const historyArr = [];
 
 if (!hasPushed){
 
@@ -131,7 +111,7 @@ if (!hasPushed){
     break
   }
 
-} 
+}
 }
 
   return historyArr.toReversed()
@@ -301,7 +281,7 @@ async function uploadFirstTree(treeHash, path = "", files = [], spinner) {
           content: fs.readFileSync('./.twig/files/' + file.localHash, 'utf8'),
           encoding: "utf-8"
         });
-        
+
         file.sha = blobData.sha;
       })
     );
@@ -317,7 +297,7 @@ async function deltaUpload(tree1, tree2, spinner) {
   const REPO = "twigtesting";
 
   const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
-  
+
   const finalDeltas = [];
   const toUpload = [];
 
@@ -363,7 +343,7 @@ async function deltaUpload(tree1, tree2, spinner) {
           content: fs.readFileSync('./.twig/files/' + item.localHash, 'utf8'),
           encoding: "utf-8"
         });
-        
+
         item.sha = blobData.sha;
       })
     );
@@ -476,11 +456,11 @@ function applyDiff(parentTreeHash, diff, message, timestamp, oid) {
             parent:database.getBranch(currBranch).commit_hash,
             when: timestamp
             };
-    
+
             database.insertObject(
             crypto.hash(JSON.stringify(commitinfo)),
             "commit",
-            JSON.stringify(commitinfo), 
+            JSON.stringify(commitinfo),
             oid
             );
 
@@ -491,7 +471,7 @@ function applyDiff(parentTreeHash, diff, message, timestamp, oid) {
 function deltaResolve(tree1, tree2) {
 
   const allFiles = new Set([...Object.keys(tree1), ...Object.keys(tree2)]);
-  
+
   const result = {}
 
   for (const file of allFiles) {
@@ -517,7 +497,7 @@ const cli = yargs(hideBin(process.argv))
     'init',
     'Initialize Twig in a working directory',
     (yargs) => {},
-    async (argv) => {  
+    async (argv) => {
       await initialize()
      }
   ).command(
@@ -554,8 +534,8 @@ const cli = yargs(hideBin(process.argv))
 
     }
   ).command(
-    'compare <c1> <c2>', 
-    'Compare what changed between two commit ID\'s. Order does not matter', 
+    'compare <c1> <c2>',
+    'Compare what changed between two commit ID\'s. Order does not matter',
     (yargs) => {
       return yargs.positional('c1', {
         describe: 'Commit 1 to compare',
@@ -564,16 +544,16 @@ const cli = yargs(hideBin(process.argv))
         describe: 'Commit 2 to compare',
         type: 'string',
       })
-    }, 
+    },
     (argv) => {
-      
+
       compare(argv.c1, argv.c2)
-      
+
     }
   ).command(
-    'log', 
-    'Display commit history for your current branch', 
-    () => {}, 
+    'log',
+    'Display commit history for your current branch',
+    () => {},
     (argv) => {
 
       const parentBranch = fs.readFileSync('./.twig/HEAD', 'utf8');
@@ -583,15 +563,15 @@ const cli = yargs(hideBin(process.argv))
       } else {
         hash = parentBranch
       }
-    
+
       twigLog(hash)
-      
+
 
 
     }
   ).command(
   'branch [name]',
-  'Create or delete a branch', 
+  'Create or delete a branch',
   (yargs) => {
     return yargs
       .positional('name', {
@@ -603,7 +583,7 @@ const cli = yargs(hideBin(process.argv))
         type: 'array',
         describe: 'delete the branches inputted after the --rm flag (if multiple)',
       });
-  }, 
+  },
   async (argv) => {
 
     if (!argv.name && !argv.remove) {
@@ -617,8 +597,8 @@ const cli = yargs(hideBin(process.argv))
 
   }
   ).command(
-    'checkout <name>', 
-    'Checkout a branch or commit', 
+    'checkout <name>',
+    'Checkout a branch or commit',
     (yargs) => {
       return yargs.positional('name', {
         describe: 'name of branch / commit ID',
@@ -627,7 +607,7 @@ const cli = yargs(hideBin(process.argv))
         alias: 'branch',
         describe: 'Name option to create a new branch with checked out commit'
       })
-    }, 
+    },
     (argv) => {
 
     if (database.getBranch(argv.name) == undefined){
@@ -686,11 +666,11 @@ const cli = yargs(hideBin(process.argv))
         logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
         process.exit()
       } else {
-      
+
       if (uncommittedChanges()){
         logger.warning("client", ('cannot change branches with uncommitted changes.'))
       } else {
-    
+
 
       fs.writeFileSync('./.twig/HEAD', argv.name, 'utf8');
 
@@ -700,34 +680,34 @@ const cli = yargs(hideBin(process.argv))
 
       logger.output('Current HEAD: Branch ' + chalk.magenta.bold(argv.name))
     }
-      
+
 
       }
     }
     }
   ).command(
-    'branches', 
-    'List all branches and their latest commits, along with your current branch', 
+    'branches',
+    'List all branches and their latest commits, along with your current branch',
     (yargs) => {
-    }, 
+    },
     (argv) => {
-      
+
       listBranches()
 
     }
 
-  ).command( 
-    'login', 
-    'login to twig-cli', 
-    (yargs) => {}, 
+  ).command(
+    'login',
+    'login to twig-cli',
+    (yargs) => {},
     async (argv) => {
 
-      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8'); 
+      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8');
 
       const res = await fetch('https://twig-cli.vercel.app/api/isLogin', {
         method: 'POST',
-        headers: { 
-            'Authorization': `Bearer ${token}` 
+        headers: {
+            'Authorization': `Bearer ${token}`
         },
       });
 
@@ -740,7 +720,7 @@ const cli = yargs(hideBin(process.argv))
 
 app.get('/', (req, res) => {
   const token = req.query.token;
- 
+
   if (token) {
     if (token == "FATAL"){
       res.send('<script>window.location.replace(\'https://twig-cli.vercel.app/auth/error?error=cli&code=Login%20cancelled\')</script>');
@@ -758,7 +738,7 @@ app.get('/', (req, res) => {
 });
 
 const server = app.listen(4321, () => {
-  console.log(chalk.yellowBright('Redirecting to login...\nUse CTRL + C to cancel'));
+  console.log(chalk.yellowBright('Redirecting to login...\nhttps://twig-cli.vercel.app/auth/login?callback=http://localhost:4321\nUse CTRL + C to cancel'));
   exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
 });
 
@@ -770,10 +750,10 @@ process.on('SIGINT', function() {
 
     }
   ).command(
-    'push', 
-    'push files', 
-    (yargs) => {}, 
-    (argv) => {
+    'push',
+    'push files',
+    (yargs) => {},
+    async (argv) => {
 
       const db = database.getDb();
 
@@ -787,16 +767,24 @@ const exportData = {
 
 const json = JSON.stringify(exportData);
 
+if (fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0] == "null"){
+  
+const repoName = await input({message:'what do you want the repo name to be'})
+const [_, ...r] = (fs.readFileSync('./.twig/CONFIG', 'utf8')).split('\n');
+fs.writeFileSync('./.twig/CONFIG', [repoName, ...r].join('\n'));
+
+}
+
     async function testPush(){
 
-      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8'); 
-      
+      const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8');
+
       const formData = new FormData();
       formData.append('name', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[0]);
       formData.append('sql', json)
-      formData.append('local_id', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[2])      
+      formData.append('local_id', fs.readFileSync('./.twig/CONFIG', 'utf8').split('\n')[2])
       const files = fs.readdirSync('./.twig/files', {
-        withFileTypes: true 
+        withFileTypes: true
     });
 
     for (const currFile of files) {
@@ -811,8 +799,8 @@ const json = JSON.stringify(exportData);
 
           const res = await fetch('https://twig-cli.vercel.app/api/push', {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
+        headers: {
+          'Authorization': `Bearer ${token}`
         },
         body: formData
       });
@@ -836,10 +824,10 @@ const json = JSON.stringify(exportData);
 
     }
   ).command(
-    'gui', 
-    'launch GUI', 
+    'gui',
+    'launch GUI',
     (yargs) => {
-    }, 
+    },
     (argv) => {
 
 const app = express();
@@ -888,12 +876,12 @@ app.get('/branch/:branch/*path', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`http://localhost:${PORT}`);
-});  
+});
 
       }
   ).command(
-    'merge <name> [options]', 
-    'merge two branches', 
+    'merge <name> [options]',
+    'merge two branches',
     (yargs) => {
       return yargs.positional('name', {
         describe: 'branch to merge into current branch',
@@ -902,7 +890,7 @@ app.listen(PORT, () => {
         alias: 'force',
         describe: 'force a merge if unrelatedHistories error'
       })
-    }, 
+    },
     async (argv) => {
 
     if (database.getBranch(argv.name) == undefined){
@@ -973,7 +961,7 @@ app.listen(PORT, () => {
               logger.log("engine", "base commit " + base + " found")
             }
             const currBranchTree = getTreeFilesAndHash((JSON.parse(database.getObject(currBranchLatestCommit).data).tree))
-            const mergeBranchTree = getTreeFilesAndHash(JSON.parse(database.getObject(mergeBranchLatestCommit).data).tree) 
+            const mergeBranchTree = getTreeFilesAndHash(JSON.parse(database.getObject(mergeBranchLatestCommit).data).tree)
             const baseMap = new Map(Object.entries(baseTree));
             const currMap = new Map(Object.entries(currBranchTree));
             const mergeMap = new Map(Object.entries(mergeBranchTree));
@@ -984,17 +972,17 @@ app.listen(PORT, () => {
             ...mergeMap.keys()
             ])
 
-                    
+
             const merged = new Map();
             const conflicts = [];
-            
+
             for (const path of allPaths) {
             const baseHash = baseMap.get(path);
             const currHash = currMap.get(path);
             const mergeHash = mergeMap.get(path);
 
             baseHash == currHash && baseHash == mergeHash ? "":(baseHash != currHash ? (baseHash != mergeHash ? logger.output(path + " has changes in both branches") : logger.output(path + " has changes in current branch")) : logger.output(path + " has changes in merge branch"))
-    
+
 
             const action = classify(baseHash,currHash,mergeHash);
 
@@ -1025,7 +1013,7 @@ app.listen(PORT, () => {
             break;
     }
           }
-            
+
           if (conflicts.length > 0){
 
             for (const conflict of conflicts){
@@ -1039,11 +1027,11 @@ app.listen(PORT, () => {
               }
 
             }
-            
 
 
-          }  
-          
+
+          }
+
 
           const root = {
     directories: {},
@@ -1101,21 +1089,21 @@ for (const [filePath, hash] of merged) {
     }
     }
   ).command(
-    'rollback <commit>', 
-    'restores repository to the state at that commit', 
+    'rollback <commit>',
+    'restores repository to the state at that commit',
     (yargs) => {
       return yargs.positional('commit', {
         describe: 'commit to rollback to',
         type: 'string',
       })
-    }, 
+    },
     async (argv) => {
 
     const rollback_confirm = await confirm({ message: `${chalk.redBright('Are you sure you would like to rollback?')}` });
 
     if (rollback_confirm){
 
-      
+
     const spinner = ora('Restoring files...').start();
 
       const commitTree = JSON.parse(database.getObjectLike(`${argv.commit}%`).data).tree
@@ -1124,32 +1112,32 @@ for (const [filePath, hash] of merged) {
       const currentBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
 
     database.setParentBranch(database.getObjectLike(`${argv.commit}%`).hash, currentBranch)
-      
+
     spinner.succeed(`Successfully rolled back to ${chalk.blueBright(argv.commit)}`)
 
     }
   }
   ).command(
-    'gh', 
-    'pushes to github', 
+    'gh',
+    'pushes to github',
     (yargs) => {
-    }, 
+    },
     async (argv) => {
   const spinner = ora('Pushing...').start()
 
   const ALREADY_PUSHED = fs.readFileSync('./.twig/REMOTE', 'utf8');
 
-  spinner.text = `Pushing...${ALREADY_PUSHED ? "remote found":"remote not found"}` 
+  spinner.text = `Pushing...${ALREADY_PUSHED ? "remote found":"remote not found"}`
 
   let branchExists = true
 
   const octokit = new Octokit({ auth: GITHUB_SECRET });
-    
-  const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8') 
+
+  const currBranch = fs.readFileSync('./.twig/HEAD', 'utf8')
 
   const OWNER = "anshxlm";
   const REPO = "twigtesting";
-  const BRANCH = currBranch == "master" ? "main":currBranch; 
+  const BRANCH = currBranch == "master" ? "main":currBranch;
 
   let currentParentSha = null;
   // MODIFIED: Added a variable to hold the remote's base tree SHA to use for our single delta push
@@ -1162,7 +1150,7 @@ for (const [filePath, hash] of merged) {
     );
 
     currentParentSha = refData.object.sha
-    
+
     // MODIFIED: Fetch the remote commit object immediately to get its tree SHA baseline
     const { data: parentCommitData } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
@@ -1190,10 +1178,10 @@ for (const [filePath, hash] of merged) {
   } else {
     // MODIFIED: Instead of checking intermediate commits, pull down the remote tree structure instantly...
     const { data: remoteTreeData } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=true", 
+      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=true",
       { owner: OWNER, repo: REPO, tree_sha: baseTreeSha }
     );
-    
+
     const remoteTreeMap = {};
     for (const entry of remoteTreeData.tree) {
       if (entry.type === "blob") remoteTreeMap[entry.path] = entry.sha;
@@ -1226,11 +1214,11 @@ for (const [filePath, hash] of merged) {
       tree: treeData.sha,
       parents: currentParentSha ? [currentParentSha] : []
     });
-    
+
     database.updateCommitSha(commitData.sha, targetCommitHash)
     currentParentSha = commitData.sha;
   }
-    
+
   if (branchExists) {
     const { data: finalRef } = await octokit.request(
       "PATCH /repos/{owner}/{repo}/git/refs/heads/{branch}",
@@ -1256,16 +1244,16 @@ for (const [filePath, hash] of merged) {
   }
 }
   ).command(
-    'git', 
-    'pushes to github', 
+    'git',
+    'pushes to github',
     (yargs) => {
-    }, 
+    },
     async (argv) => {
 
       const Isfirst = fs.readFileSync('./.twig/REMOTE', 'utf8') == ""
 
       console.log(Isfirst)
-      
+
 async function pullRealFilesFromGitHub(workDir, repoUrl, token) {
   const memfs = createFsFromVolume(new Volume());
   const dir = '/';
@@ -1420,8 +1408,8 @@ async function pushRealFilesToGitHub(workDir, commits, repoUrl, token,) {
 }
 
 // pullRealFilesFromGitHub(
-//   "./", 
-//   "https://github.com/anshxlm/improved-chainsaw.git", 
+//   "./",
+//   "https://github.com/anshxlm/improved-chainsaw.git",
 //   GITHUB_SECRET)
 
 
@@ -1437,18 +1425,18 @@ const myCustomCommits = [
 ];
 
 await pushRealFilesToGitHub(
-  "./", 
-  myCustomCommits, 
-  "https://github.com/anshxlm/improved-chainsaw.git", 
+  "./",
+  myCustomCommits,
+  "https://github.com/anshxlm/improved-chainsaw.git",
   GITHUB_SECRET
 );
 
 }
   ).command(
-    'github_pull', 
-    'pulls changes from github', 
+    'github_pull',
+    'pulls changes from github',
     (yargs) => {
-    }, 
+    },
     async (argv) => {
 
       await pull()
@@ -1456,14 +1444,14 @@ await pushRealFilesToGitHub(
 
 }
   ).command(
-    'set remote <url>', 
-    'set remote url', 
+    'set remote <url>',
+    'set the git url',
     (yargs) => {
       return yargs.positional('url', {
         describe: 'git url',
         type: 'string',
       })
-    }, 
+    },
     async (argv) => {
 
       fs.writeFileSync('./.twig/REMOTE', argv.url, 'utf8')
@@ -1471,12 +1459,23 @@ await pushRealFilesToGitHub(
 
     }
   ).command(
-    'github_push', 
-    'push commits to github', 
+    'github_push',
+    'push commits to github',
     (yargs) => {},
     async (argv) => {
 
       await push()
+
+    }
+  )
+  .command(
+    'logout',
+    'logout of Twig servers',
+    (yargs) => {},
+    async (argv) => {
+    
+      fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN'), "");
+      logger.success('client', "logged out successfully")
 
     }
   ).help()
