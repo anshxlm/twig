@@ -10,7 +10,7 @@ Twig is a fast and powerful version control client with Github compatibility, cu
 
 ![commit demo](https://github.com/anshxlm/twig/blob/3157754cb0a2a71954ccbebb8ee1dd87a66d3c3b/docs/hero.gif)
 
-### **Note:** This project includes the custom file hosting server/site and it's code is [here](https://github.com/anshxlm/twig-server)
+### **Note:** <span style="color:green;">This project includes the custom file hosting server/site and it's code is [here](https://github.com/anshxlm/twig-server)</span>
 
 
 ## Table of Contents

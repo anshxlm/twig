@@ -530,6 +530,8 @@ const cli = yargs(hideBin(process.argv))
                             throw error
                     }
                     }
+      } else {
+        msg = argv.m
       }
 
       await commit(msg)
