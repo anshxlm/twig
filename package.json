@@ -1,6 +1,6 @@
 {
-  "name": "twig",
-  "version": "1.0.0",
+  "name": "@anshul37_/twig",
+  "version": "1.0.1",
   "description": "smarter version control",
   "main": "index.js",
   "bin": "./bin/bin.js",
@@ -9,6 +9,10 @@
     "postinstall": "node postinstall.js"
   },
   "author": "Anshul",
+   "repository": {
+    "type": "git",
+    "url": "https://github.com/anshxlm/twig"
+  },
   "type": "module",
   "license": "MIT",
   "dependencies": {
