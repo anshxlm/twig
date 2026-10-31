@@ -10,23 +10,28 @@ Twig is a fast and powerful version control client with Github compatibility, cu
 
 ![commit demo](https://github.com/anshxlm/twig/blob/3157754cb0a2a71954ccbebb8ee1dd87a66d3c3b/docs/hero.gif)
 
+### **Note:** This project includes the custom file hosting server/site and it's code is [here](https://github.com/anshxlm/twig-server)
+
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Quick Start](#quick-start)
 3. [Commands](#commands)
 4. [Architecture](#)
+
+
 ## Introduction
 Twig is a command-line version control system built on NodeJS. It is designed to capture snapshots of your work allowing you to track the complete history of a project. It has the core features of a version control system, 
 
 ### Package
 
-The package can be found on npm [here](https://PACKAGE_LINK_SOON)
+The package can be found on npm [here](https://www.npmjs.com/package/@anshul37_/twig)
 
 ## Quick Start
 Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
 
 ```
-npm install -g twigvc
+npm i @anshul37_/twig
 ```
 From there, initialize twig in your working directory
 ```
@@ -40,8 +45,6 @@ Read the commit back with
 ```
 twig log
 ```
-
-Congrats on getting started with Twig! Read the rest of the features [here](#)
 
 ## Commands
 | Command | Description |
@@ -58,8 +61,12 @@ Congrats on getting started with Twig! Read the rest of the features [here](#)
 | [`github push`](#twig-github-push) | Push commits to Github |
 | [`github pull`](#twig-github-pull) | Pull commits from Github |
 | [`gui`](#twig-gui) | Launch the local twig web interface. |
-| [`login`](#twig-login) | Authenticate with twigs file hosting server. |
-| [`push`](#twig-push) | Upload commits and objects to store on twig servers. |
+| [`login`](#twig-login) | Authenticate with twig file hosting server. |
+| [`push`](#twig-push) | Upload commits and objects to store on twig/your servers. |
+| [`ai`](#twig-ai) | Talk to the built in Twig AI |
+| [`set remote`](#twig-set-remote) | Set Github URL for the current project |
+| [`set server`](#twig-set-server) | Set the global, custom file hosting server URL. Defaults to twig servers. |
+| [`set gemini`](#twig-set-gemini) | Set your global Gemini API key |
 
 ## `twig init`
 
@@ -253,5 +260,39 @@ Subsequent pushes upload only newly created objects and updated branch reference
 twig push
 ```
 
-> [!NOTE]
-> A successful `twig login` is required before pushing to a remote repository.
+## `twig ai`
+
+Spin up a local MCP server that reads your .twig folder and then uses your Google Gemini API key to start a chat directly in the terminal. You can ask about your commit history, specific commits, branches, and ask it to inspect files. 
+
+```bash
+twig ai
+```
+
+## `twig set gemini`
+
+Save your Google Gemini API key globally so `@twig/ai` can authenticate and run terminal AI chat sessions.
+
+```bash
+twig set gemini YOUR_API_KEY
+```
+
+---
+
+## `twig set remote`
+
+Set the remote GitHub repository URL for the current project workspace.
+
+```bash
+twig set remote https://github.com/username/repository.git
+```
+
+---
+
+## `twig set server`
+
+Set the global custom Twig server host URL (provide the base URL **without** paths, like `https://myServer/` instead of `https://myServer/api/push`). Defaults to official Twig servers.
+
+```bash
+twig set server https://myServer/
+```
+
