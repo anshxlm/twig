@@ -36,6 +36,7 @@ import listBranches from '../lib/engine/branches.js';
 import push from '../lib/github/push.js';
 import pull from '../lib/github/pull.js';
 import loadCommitToDirectory from '../lib/util/loadCommitToDirectory.js';
+import ai from '../lib/ai/gemini.js';
 
 /* ---------------------------------------------------------- GLOBAL / SETUP --------------------------------------------------------------*/
 
@@ -51,6 +52,7 @@ async function promptToken(){
 }
 let GITHUB_SECRET
 GITHUB_SECRET = fs.readFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), 'utf8')
+const TWIG_SERVER_URL = fs.readFileSync(path.join(paths.data, 'SERVER' ), 'utf8')
 /* ----------------------------------------------------------     ENGINE     --------------------------------------------------------------*/
 
 // returns the tree contents
@@ -704,7 +706,7 @@ const cli = yargs(hideBin(process.argv))
 
       const token = fs.readFileSync(path.join(paths.data, 'TOKEN' ), 'utf8');
 
-      const res = await fetch('https://twig-cli.vercel.app/api/isLogin', {
+      const res = await fetch(`${TWIG_SERVER_URL}/api/isLogin`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`
@@ -723,12 +725,12 @@ app.get('/', (req, res) => {
 
   if (token) {
     if (token == "FATAL"){
-      res.send('<script>window.location.replace(\'https://twig-cli.vercel.app/auth/error?error=cli&code=Login%20cancelled\')</script>');
+      res.send(`<script>window.location.replace('${TWIG_SERVER_URL}/auth/error?error=cli&code=Login%20cancelled')</script>`);
       server.closeAllConnections()
       server.close();
       console.log(chalk.redBright("Login cancelled"));
     } else {
-    res.send('<script>window.location.replace(\'https://twig-cli.vercel.app/auth/error?error=cli&code=Successfully%20logged%20in\')</script>');
+    res.send(`<script>window.location.replace('${TWIG_SERVER_URL}/auth/error?error=cli&code=Successfully%20logged%20in')</script>`);
     fs.writeFileSync(path.join(paths.data, 'TOKEN'), token);
     console.log(chalk.greenBright('Logged in'));
     server.closeAllConnections()
@@ -738,8 +740,8 @@ app.get('/', (req, res) => {
 });
 
 const server = app.listen(4321, () => {
-  console.log(chalk.yellowBright('Redirecting to login...\nhttps://twig-cli.vercel.app/auth/login?callback=http://localhost:4321\nUse CTRL + C to cancel'));
-  exec(`start https://twig-cli.vercel.app/auth/login?callback=http://localhost:4321`);
+  console.log(chalk.yellowBright(`Redirecting to login...\n${TWIG_SERVER_URL}/auth/login?callback=http://localhost:4321\nUse CTRL + C to cancel`));
+  exec(`start ${TWIG_SERVER_URL}/auth/login?callback=http://localhost:4321`);
 });
 
 process.on('SIGINT', function() {
@@ -797,7 +799,7 @@ fs.writeFileSync('./.twig/CONFIG', [repoName, ...r].join('\n'));
     );
   }
 
-          const res = await fetch('https://twig-cli.vercel.app/api/push', {
+          const res = await fetch(`${TWIG_SERVER_URL}/api/push`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1117,7 +1119,9 @@ for (const [filePath, hash] of merged) {
 
     }
   }
-  ).command(
+  )
+
+  /*.command(
     'gh',
     'pushes to github',
     (yargs) => {
@@ -1432,7 +1436,8 @@ await pushRealFilesToGitHub(
 );
 
 }
-  ).command(
+  )*/
+ .command(
     'github_pull',
     'pulls changes from github',
     (yargs) => {
@@ -1470,7 +1475,7 @@ await pushRealFilesToGitHub(
   )
   .command(
     'logout',
-    'logout of Twig servers',
+    'logout of Twig server',
     (yargs) => {},
     async (argv) => {
     
@@ -1478,7 +1483,60 @@ await pushRealFilesToGitHub(
       logger.success('client', "logged out successfully")
 
     }
-  ).help()
+  ).command(
+    'set server <url>',
+    'set the twig server url',
+    (yargs) => {
+      return yargs.positional('url', {
+        describe: ': server host (url WITHOUT path like https://myServer/ NOT https://myServer/api/push)',
+        type: 'string',
+      })
+    },
+    async (argv) => {
+
+      fs.writeFileSync(path.join(paths.data, 'SERVER'), token, 'utf8')
+      logger.warning('client', 'this sets the GLOBAL twig server host')
+      const confirmation = await confirm({message:"confirm"})
+      if (confirmation){
+      logger.success("client", "GLOBAL server host set")
+      }
+
+    }
+  ).command(
+    'ai',
+    'Launches Twig AI',
+    (yargs) => {
+    },
+    async (argv) => {
+
+      let geminiKey;
+      try {
+        geminiKey = fs.readFileSync(path.join(paths.data, 'GEMINI'), 'utf8');
+      } catch (err){
+        logger.error('engine', 'please set a Gemini API key with twig set gemini <key>')
+        process.exit()
+      }
+
+      await ai(geminiKey)
+
+    }
+  ).command(
+    'set gemini <key>',
+    'set the twig ai key',
+    (yargs) => {
+      return yargs.positional('key', {
+        describe: 'gemini API ke',
+        type: 'string',
+      })
+    },
+    async (argv) => {
+    
+    fs.writeFileSync(path.join(paths.data, 'GEMINI'), argv.key);
+     logger.success("client", "gemini api key set")
+
+    }
+  )
+  .help()
   .showHelpOnFail(true)
   .demandCommand()
   .parse()

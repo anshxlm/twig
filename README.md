@@ -233,9 +233,9 @@ twig gui
 
 ## `twig login`
 
-Authenticates the local CLI with your Twighub account.
+Authenticates the local CLI with your file hosting account.
 
-Running the command opens the Twighub authentication page in your browser. After signing in, Twig securely stores a session token locally, allowing future commands such as `twig push` to authenticate automatically.
+Running the command opens the authentication page. After signing in, Twig stores a session token locally, allowing future commands such as `twig push` to authenticate automatically.
 
 ```bash
 twig login
@@ -245,15 +245,9 @@ twig login
 
 ## `twig push`
 
-Uploads local commits and objects to a remote repository.
+Uploads local commits and objects to file hosting server.
 
-On the initial push, Twig:
-
-1. Creates the remote repository.
-2. Uploads all blob objects.
-3. Synchronizes commit, tree, and branch metadata.
-
-Subsequent pushes upload only newly created objects and updated branch references, minimizing network usage.
+Subsequent pushes upload only newly created objects and updated branch references.
 
 ```bash
 twig push
