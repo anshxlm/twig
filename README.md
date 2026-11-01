@@ -17,7 +17,8 @@ Twig is a fast and powerful version control client with Github compatibility, cu
 1. [Introduction](#introduction)
 2. [Quick Start](#quick-start)
 3. [Commands](#commands)
-4. [Architecture](#)
+4. [Architecture](#architecture)
+5. [Credits](#credits)
 
 
 ## Introduction
@@ -295,4 +296,29 @@ Set the global custom Twig server host URL (provide the base URL **without** pat
 ```bash
 twig set server https://myServer/
 ```
+
+## Architecture
+
+Twig stores everything as content-addressed objects in a SQLite database inside the .twig directory. A file is a blob, a directory is a tree that points to blobs and other trees, and a commit points to a root tree, its parent commit, and some metadata. Each object is keyed by a hash of its contents.
+
+Branches live in their own table. Each one maps a name to a commit hash, so a branch is really just a pointer you can move forward as work lands on that line of development.
+
+When you commit, Twig takes a snapshot of your working directory and builds trees from the bottom up to mirror its folder structure. It stores any blobs and trees it hasn’t seen before, then writes a new commit that points to the resulting root tree, with the previous commit as its parent.
+
+Checking out a branch works in reverse. Twig looks up the branch’s commit, walks that commit’s root tree, and rebuilds your working directory from the blobs it references.
+
+Merging starts by walking back through both commits’ histories to find their most recent common ancestor, the merge base. From there, Twig does a three-way comparison of the base, your current branch, and the incoming branch, using the file path to hash mappings to see what changed on each side. If only one side touched a file, that change is applied automatically. If both sides made the identical change, it’s accepted as is. If both changed the same file differently, you choose which version to keep.
+
+For GitHub compatibility, Twig uses isomorphic-git to translate its commits and trees into regular Git objects, then pushes and pulls using Git’s own object and reference model.
+
+When you push to your custom / twig server, the CLI determines what additions were made between the last pushed commit and the latest one. It then pushes the SQLite database to the server route, and the additional blobs. The server then maps the SQLite into Supabase tables, and the additions into Microsoft Azure Blob Storage. A diagram below provides a visual on this.
+
+![architecture diagram](https://github.com/anshxlm/twig/blob/25567e12645d2212af38cdd7437869f3cbf151ec/docs/Twig%20Architecture.drawio.svg)
+
+
+## Credits
+
+A major shoutout to [this article](https://coderefinery.github.io/git-intro/under-the-hood/) which has a helpful explanation of how Git works under the hood.
+
+Thank you to the developers and maintainers of [NodeJS](https://nodejs.org/en), [yargs](https://www.npmjs.com/package/yargs), and [isomorphic-git](https://www.npmjs.com/package/isomorphic-git).
 
