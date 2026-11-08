@@ -29,15 +29,15 @@ Twig is a command-line version control system built on NodeJS. It is designed to
 The package can be found on npm [here](https://www.npmjs.com/package/@anshul37_/twig)
 
 ## Quick Start
-Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
+Installation is simple. Make sure you have NodeJS along with npm installed, and then allow the postinstall scripts:
+
+```
+npm config set allow-scripts=@anshul37_/twig,@google/genai,better-sqlite3,protobufjs --location=user
+```
+Then, install the package:
 
 ```
 npm i @anshul37_/twig -g
-```
-If prompted, allow the postinstall script:
-
-```
-npm approve-scripts @anshul37_/twig
 ```
 
 From there, initialize twig in your working directory
