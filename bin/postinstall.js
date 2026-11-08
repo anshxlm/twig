@@ -6,4 +6,5 @@ const paths = envPaths('twigvcs', {suffix:''});
 
 fs.mkdirSync(paths.data, { recursive: true })
 fs.writeFileSync(path.join(paths.data, 'TOKEN' ), '', 'utf8')
+fs.writeFileSync(path.join(paths.data, 'GITHUB_TOKEN' ), '', 'utf8')
 fs.writeFileSync(path.join(paths.data, 'SERVER' ), 'https://twig-cli.vercel.app', 'utf8')
