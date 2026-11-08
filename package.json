@@ -1,6 +1,6 @@
 {
   "name": "@anshul37_/twig",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "smarter version control",
   "main": "index.js",
   "bin": "./bin/bin.js",
