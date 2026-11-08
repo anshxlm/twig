@@ -32,8 +32,14 @@ The package can be found on npm [here](https://www.npmjs.com/package/@anshul37_/
 Installation is simple. Make sure you have NodeJS along with npm installed, and then run:
 
 ```
-npm i @anshul37_/twig
+npm i @anshul37_/twig -g
 ```
+If prompted, allow the postinstall script:
+
+```
+npm approve-scripts @anshul37_/twig
+```
+
 From there, initialize twig in your working directory
 ```
 twig init
